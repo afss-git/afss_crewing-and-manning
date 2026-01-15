@@ -1,0 +1,44 @@
+// Prisma schema for crew-manning
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  hash      String
+  salt      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id         Int        @id @default(autoincrement())
+  email      String     @unique
+  firstName  String?
+  lastName   String?
+  approved   Boolean    @default(false)
+  documents  Document[]
+}
+
+model Document {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id])
+  docType    String
+  status     String
+  adminNotes String?
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Setting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
