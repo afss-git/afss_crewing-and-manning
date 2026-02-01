@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../lib/auth";
 import { getAllUsers } from "../../../../../../lib/adminData";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const check = auth.requireAdmin(req as unknown as Request);
   if (!check.ok) {

@@ -71,32 +71,37 @@ export async function POST(
     }
 
     const allContracts: ExternalContract[] = await allContractsResponse.json();
-    
+
     // Enhanced contract lookup with detailed logging
-    console.log(`\ud83d\udd0d Searching for contract ${contract_id} in ${allContracts.length} contracts...`);
-    
+    console.log(
+      `\ud83d\udd0d Searching for contract ${contract_id} in ${allContracts.length} contracts...`,
+    );
+
     const contract = allContracts.find(
       (c: ExternalContract) =>
         c.id.toString() === contract_id || c.reference_number === contract_id,
     );
 
     if (!contract) {
-      console.log(`\u274c Available contracts:`, allContracts.map(c => ({
-        id: c.id,
-        reference: c.reference_number,
-        status: c.status
-      })));
+      console.log(
+        `\u274c Available contracts:`,
+        allContracts.map((c) => ({
+          id: c.id,
+          reference: c.reference_number,
+          status: c.status,
+        })),
+      );
       return NextResponse.json(
         { detail: "Contract not found" },
         { status: 404 },
       );
     }
-    
+
     console.log(`\u2705 Found contract:`, {
       id: contract.id,
       reference: contract.reference_number,
       status: contract.status,
-      searchTerm: contract_id
+      searchTerm: contract_id,
     });
 
     // Call the external API to reject the contract using numeric ID (external API requires integers)

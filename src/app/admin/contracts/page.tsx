@@ -621,14 +621,19 @@ export default function AdminContractsPage() {
 
     if (contract.numericId && typeof contract.numericId === "number") {
       contractId = contract.numericId.toString();
-      console.log(`🎯 Using numericId: ${contractId} for contract: ${contract.contractNumber}`);
+      console.log(
+        `🎯 Using numericId: ${contractId} for contract: ${contract.contractNumber}`,
+      );
     } else {
-      console.error(`❌ Numeric ID not available for contract ${contract.contractNumber}:`, {
-        contractNumber: contract.contractNumber,
-        numericId: contract.numericId,
-        numericIdType: typeof contract.numericId,
-        id: contract.id
-      });
+      console.error(
+        `❌ Numeric ID not available for contract ${contract.contractNumber}:`,
+        {
+          contractNumber: contract.contractNumber,
+          numericId: contract.numericId,
+          numericIdType: typeof contract.numericId,
+          id: contract.id,
+        },
+      );
       alert(
         `Cannot ${action} contract "${contract.contractNumber}": Missing numeric ID. The external API requires database IDs for operations.`,
       );
