@@ -1,8 +1,9 @@
 // Prisma schema for crew-manning
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 
 generator client {
   provider = "prisma-client-js"
