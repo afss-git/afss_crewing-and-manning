@@ -100,7 +100,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  Capt. John Doe
+                  Captain Name
                 </p>
                 <p className="text-xs text-gray-500">Master Mariner</p>
               </div>
@@ -110,7 +110,7 @@ export default function DashboardPage() {
                   backgroundImage:
                     "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBnSQAbhU6fPjgHU54lK39r8av1GbzRqWp_weWXt1Rfptne7mEvWfUosF-YzxzCMqOPAlT_D9riYPe4EAJ-ltcuE3EuffjEuj18VmB-NUNEAmrHf5YAsARVGuA20haktGPw8d7M4abXcw2BKgW-ArztX0zz--RI7dPnatV9bEGY9YijUULPVZ_sAo4WzdKSTeAU2WuH2Wk2WdkgPB19sYWpNOWSllY7N128A22cexc_QkuyIEG_uX5P8jL_BjlyKg2bB6XIfJHqxfNS')",
                 }}
-                data-alt="Profile picture of Captain John Doe"
+                data-alt="Profile picture of Captain"
               ></div>
             </div>
           </div>

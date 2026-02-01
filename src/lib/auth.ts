@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes } from "crypto";
+import { createHmac } from "crypto";
 
 function base64urlEncode(input: Buffer) {
   return input
@@ -64,4 +64,5 @@ export function signJwt(payload: object, secret: string) {
   return `${headerB}.${payloadB}.${sigB}`;
 }
 
-export default { verifyJwt, requireAdmin, signJwt };
+const auth = { verifyJwt, requireAdmin, signJwt };
+export default auth;

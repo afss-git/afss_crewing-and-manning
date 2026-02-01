@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import AdminProfile from "../../../components/AdminProfile";
 
 interface CompanyData {
@@ -62,7 +61,6 @@ interface Contract {
 }
 
 export default function AdminShipOwnersPage() {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -86,15 +84,19 @@ export default function AdminShipOwnersPage() {
         const transformedEntities: Entity[] = companiesData.map((company) => ({
           id: company.user_id.toString(),
           name: company.company.name,
-          website: company.company.website || '',
-          type: company.user_type === 'ship_owner' ? 'owner' : 'agent',
+          website: company.company.website || "",
+          type: company.user_type === "ship_owner" ? "owner" : "agent",
           idCode: company.company.imo_number || company.user_id.toString(),
-          location: company.company.hq_address.split(',')[0] || 'Unknown',
-          country: 'NG', // Default for now
+          location: company.company.hq_address.split(",")[0] || "Unknown",
+          country: "NG", // Default for now
           activeContracts: 0, // We'll need to calculate this from actual contract data
           maxContracts: 10, // Default max
-          status: company.is_approved ? 'active' : company.is_verified ? 'pending' : 'pending',
-          logo: '', // Could use a default logo
+          status: company.is_approved
+            ? "active"
+            : company.is_verified
+              ? "pending"
+              : "pending",
+          logo: "", // Could use a default logo
           email: company.email,
           phone: company.company.contact_phone,
           address: company.company.hq_address,
@@ -107,7 +109,7 @@ export default function AdminShipOwnersPage() {
         setEntities(Array.isArray(data) ? data : []);
       })
       .catch((error) => {
-        console.error('Failed to fetch companies:', error);
+        console.error("Failed to fetch companies:", error);
         if (!mounted) return;
         setEntities([]);
       });
@@ -145,13 +147,6 @@ export default function AdminShipOwnersPage() {
     activeContracts: entities.reduce((sum, e) => sum + e.activeContracts, 0),
     pendingCrew: 12,
     suspended: entities.filter((e) => e.status === "suspended").length,
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("crew-manning-user");
-    localStorage.removeItem("crew-manning-token");
-    localStorage.removeItem("crew-manning-profile");
-    router.push("/admin/login");
   };
 
   const handleAddEntity = () => {
@@ -597,8 +592,8 @@ export default function AdminShipOwnersPage() {
                               entity.status === "active"
                                 ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-red-300"
                                 : entity.status === "suspended"
-                                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
                             }`}
                           >
                             <span
@@ -606,8 +601,8 @@ export default function AdminShipOwnersPage() {
                                 entity.status === "active"
                                   ? "bg-primary dark:bg-red-400"
                                   : entity.status === "suspended"
-                                  ? "bg-red-600 dark:bg-red-400"
-                                  : "bg-yellow-600 dark:bg-yellow-400"
+                                    ? "bg-red-600 dark:bg-red-400"
+                                    : "bg-yellow-600 dark:bg-yellow-400"
                               }`}
                             ></span>
                             {entity.status.charAt(0).toUpperCase() +
@@ -858,14 +853,14 @@ export default function AdminShipOwnersPage() {
                       }}
                     ></div>
                     <div>
-                      <p className="text-xs font-bold">John Doe</p>
+                      <p className="text-xs font-bold">Available Seafarer</p>
                       <p className="text-[10px] text-[#506795] dark:text-[#94a3b8]">
                         Chief Mate • Available
                       </p>
                     </div>
                   </div>
                   <button
-                    onClick={() => handleAssignSeafarer("John Doe")}
+                    onClick={() => handleAssignSeafarer("Available Seafarer")}
                     className="text-xs font-bold text-primary dark:text-red-400 hover:underline"
                   >
                     Assign

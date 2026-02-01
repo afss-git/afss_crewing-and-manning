@@ -363,7 +363,7 @@ export default function ContractsPage() {
                             ></div>
                             <div className="ml-4">
                               <div className="text-sm font-bold text-[#0e121b]">
-                                John Doe
+                                Contract Holder
                               </div>
                               <div className="text-xs text-[#506795]">
                                 Chief Engineer
@@ -431,7 +431,7 @@ export default function ContractsPage() {
                             ></div>
                             <div className="ml-4">
                               <div className="text-sm font-bold text-[#0e121b]">
-                                Sarah Connor
+                                Contract Holder
                               </div>
                               <div className="text-xs text-[#506795]">
                                 2nd Officer
@@ -494,7 +494,7 @@ export default function ContractsPage() {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-bold text-[#0e121b]">
-                                Michael King
+                                Contract Holder
                               </div>
                               <div className="text-xs text-[#506795]">
                                 Master

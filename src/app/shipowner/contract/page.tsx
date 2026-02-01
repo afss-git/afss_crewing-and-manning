@@ -272,7 +272,7 @@ export default function ContractDetail() {
                                 JD
                               </div>
                               <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                                John Doe
+                                Contract Signatory
                               </span>
                             </div>
                           </td>

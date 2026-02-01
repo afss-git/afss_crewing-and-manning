@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -81,132 +81,135 @@ export default function AdminContractsPage() {
   const [rejectedContracts, setRejectedContracts] = useState<Contract[]>([]);
 
   // Transform pending contracts from API format to frontend format
-  const transformPendingContracts = async (
-    apiData: PendingContractApi[],
-  ): Promise<Contract[]> => {
-    return apiData.map((item) => {
-      const totalPositions =
-        item.positions?.reduce(
-          (sum: number, pos: PendingContractApi["positions"][0]) =>
-            sum + (pos.quantity || 0),
-          0,
-        ) || 0;
+  const transformPendingContracts = useCallback(
+    async (apiData: PendingContractApi[]): Promise<Contract[]> => {
+      return apiData.map((item) => {
+        const totalPositions =
+          item.positions?.reduce(
+            (sum: number, pos: PendingContractApi["positions"][0]) =>
+              sum + (pos.quantity || 0),
+            0,
+          ) || 0;
 
-      return {
-        id:
-          item.contract_number ||
-          item.id?.toString() ||
-          `contract-${Math.random()}`,
-        contractNumber: item.contract_number,
-        type:
-          totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
-        vesselName: item.vessel_type || "Unknown Vessel",
-        ownerName: item.operational_zone || "Unknown Zone",
-        seafarerName:
-          item.positions?.[0]?.rank_id?.replace(/_/g, " ") || "Multiple Roles",
-        seafarerRank:
-          item.positions?.[0]?.rank_id?.replace(/_/g, " ") || "Various",
-        seafarerAvatar: "",
-        startDate: item.target_start_date
-          ? item.target_start_date.split("T")[0]
-          : "TBD",
-        endDate: calculateEndDate(
-          item.target_start_date,
-          item.expected_duration_months || 12,
-        ),
-        progress: 0,
-        status: (() => {
-          switch (item.status.toLowerCase()) {
-            case "submitted":
-              return "pending";
-            case "approved":
-              return "active";
-            case "rejected":
-              return "suspended";
-            case "completed":
-              return "completed";
-            case "expired":
-              return "expired";
-            default:
-              return "pending";
-          }
-        })(),
-        statusNote: item.admin_notes || undefined,
-        isDraft: false,
-        isArchived: false,
-        numericId: item.id,
-      };
-    });
-  };
+        return {
+          id:
+            item.contract_number ||
+            item.id?.toString() ||
+            `contract-${Math.random()}`,
+          contractNumber: item.contract_number,
+          type:
+            totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
+          vesselName: item.vessel_type || "Unknown Vessel",
+          ownerName: item.operational_zone || "Unknown Zone",
+          seafarerName:
+            item.positions?.[0]?.rank_id?.replace(/_/g, " ") ||
+            "Multiple Roles",
+          seafarerRank:
+            item.positions?.[0]?.rank_id?.replace(/_/g, " ") || "Various",
+          seafarerAvatar: "",
+          startDate: item.target_start_date
+            ? item.target_start_date.split("T")[0]
+            : "TBD",
+          endDate: calculateEndDate(
+            item.target_start_date,
+            item.expected_duration_months || 12,
+          ),
+          progress: 0,
+          status: (() => {
+            switch (item.status.toLowerCase()) {
+              case "submitted":
+                return "pending";
+              case "approved":
+                return "active";
+              case "rejected":
+                return "suspended";
+              case "completed":
+                return "completed";
+              case "expired":
+                return "expired";
+              default:
+                return "pending";
+            }
+          })(),
+          statusNote: item.admin_notes || undefined,
+          isDraft: false,
+          isArchived: false,
+          numericId: item.id,
+        };
+      });
+    },
+    [],
+  );
 
   // Transform approved/rejected contracts from API format to frontend format
-  const transformApprovedContracts = async (
-    apiData: ApprovedContractApi[],
-  ): Promise<Contract[]> => {
-    return apiData.map((item) => {
-      const details = item.details || {};
-      const totalPositions = Array.isArray(details.positions)
-        ? details.positions.length
-        : 0;
+  const transformApprovedContracts = useCallback(
+    async (apiData: ApprovedContractApi[]): Promise<Contract[]> => {
+      return apiData.map((item) => {
+        const details = item.details || {};
+        const totalPositions = Array.isArray(details.positions)
+          ? details.positions.length
+          : 0;
 
-      return {
-        id:
-          item.reference_number ||
-          item.id?.toString() ||
-          `contract-${Math.random()}`,
-        contractNumber: item.reference_number,
-        type:
-          totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
-        vesselName:
-          details.vessel_name || details.vessel_type || "Unknown Vessel",
-        ownerName:
-          details.owner_name ||
-          details.operational_zone ||
-          details.operational_routes ||
-          "Unknown Owner",
-        seafarerName: details.seafarer_name || "Multiple Roles",
-        seafarerRank: details.seafarer_rank || "Various",
-        seafarerAvatar: "",
-        startDate:
-          details.target_start_date || details.commencement_date
-            ? (details.target_start_date || details.commencement_date)!.split(
-                "T",
-              )[0]
-            : "TBD",
-        endDate: calculateEndDate(
-          details.target_start_date || details.commencement_date,
-          details.expected_duration_months ||
-            (details.duration?.includes("Year") ? 12 : 6),
-        ),
-        progress:
-          item.status.toLowerCase() === "completed"
-            ? 100
-            : item.status.toLowerCase() === "approved"
-              ? 50
-              : 0,
-        status: (() => {
-          switch (item.status.toLowerCase()) {
-            case "submitted":
-              return "pending";
-            case "approved":
-              return "active";
-            case "rejected":
-              return "suspended";
-            case "completed":
-              return "completed";
-            case "expired":
-              return "expired";
-            default:
-              return "pending";
-          }
-        })(),
-        statusNote: item.admin_notes || undefined,
-        isDraft: false,
-        isArchived: false,
-        numericId: item.id,
-      };
-    });
-  };
+        return {
+          id:
+            item.reference_number ||
+            item.id?.toString() ||
+            `contract-${Math.random()}`,
+          contractNumber: item.reference_number,
+          type:
+            totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
+          vesselName:
+            details.vessel_name || details.vessel_type || "Unknown Vessel",
+          ownerName:
+            details.owner_name ||
+            details.operational_zone ||
+            details.operational_routes ||
+            "Unknown Owner",
+          seafarerName: details.seafarer_name || "Multiple Roles",
+          seafarerRank: details.seafarer_rank || "Various",
+          seafarerAvatar: "",
+          startDate:
+            details.target_start_date || details.commencement_date
+              ? (details.target_start_date || details.commencement_date)!.split(
+                  "T",
+                )[0]
+              : "TBD",
+          endDate: calculateEndDate(
+            details.target_start_date || details.commencement_date,
+            details.expected_duration_months ||
+              (details.duration?.includes("Year") ? 12 : 6),
+          ),
+          progress:
+            item.status.toLowerCase() === "completed"
+              ? 100
+              : item.status.toLowerCase() === "approved"
+                ? 50
+                : 0,
+          status: (() => {
+            switch (item.status.toLowerCase()) {
+              case "submitted":
+                return "pending";
+              case "approved":
+                return "active";
+              case "rejected":
+                return "suspended";
+              case "completed":
+                return "completed";
+              case "expired":
+                return "expired";
+              default:
+                return "pending";
+            }
+          })(),
+          statusNote: item.admin_notes || undefined,
+          isDraft: false,
+          isArchived: false,
+          numericId: item.id,
+        };
+      });
+    },
+    [],
+  );
 
   const calculateEndDate = (
     startDate: string | undefined,
@@ -238,23 +241,38 @@ export default function AdminContractsPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }).then(async (res) => {
-        if (!res.ok) throw new Error(`Contracts API error: ${res.status}`);
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-      });
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            console.error(`Contracts API error: ${res.status}`);
+            return []; // Return empty array instead of throwing
+          }
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        })
+        .catch((error) => {
+          console.error("Error fetching all contracts:", error);
+          return []; // Return empty array on error
+        });
 
       const pendingContractsPromise = fetch("/api/v1/admin/contracts/pending", {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }).then(async (res) => {
-        if (!res.ok)
-          throw new Error(`Pending Contracts API error: ${res.status}`);
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-      });
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            console.error(`Pending Contracts API error: ${res.status}`);
+            return []; // Return empty array instead of throwing
+          }
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        })
+        .catch((error) => {
+          console.error("Error fetching pending contracts:", error);
+          return []; // Return empty array on error
+        });
 
       const approvedContractsPromise = fetch(
         "/api/v1/admin/contracts/status/approved",
@@ -264,12 +282,19 @@ export default function AdminContractsPage() {
             "Content-Type": "application/json",
           },
         },
-      ).then(async (res) => {
-        if (!res.ok)
-          throw new Error(`Approved Contracts API error: ${res.status}`);
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-      });
+      )
+        .then(async (res) => {
+          if (!res.ok) {
+            console.error(`Approved Contracts API error: ${res.status}`);
+            return []; // Return empty array instead of throwing
+          }
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        })
+        .catch((error) => {
+          console.error("Error fetching approved contracts:", error);
+          return []; // Return empty array on error
+        });
 
       const rejectedContractsPromise = fetch(
         "/api/v1/admin/contracts/status/rejected",
@@ -279,29 +304,21 @@ export default function AdminContractsPage() {
             "Content-Type": "application/json",
           },
         },
-      ).then(async (res) => {
-        if (!res.ok)
-          throw new Error(`Rejected Contracts API error: ${res.status}`);
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-      });
-
-      try {
-        const rejectedContractsPromise = fetch(
-          "/api/v1/admin/contracts/status/rejected",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        ).then(async (res) => {
-          if (!res.ok)
-            throw new Error(`Rejected Contracts API error: ${res.status}`);
+      )
+        .then(async (res) => {
+          if (!res.ok) {
+            console.error(`Rejected Contracts API error: ${res.status}`);
+            return []; // Return empty array instead of throwing
+          }
           const data = await res.json();
           return Array.isArray(data) ? data : [];
+        })
+        .catch((error) => {
+          console.error("Error fetching rejected contracts:", error);
+          return []; // Return empty array on error
         });
 
+      try {
         const [allContracts, pendingData, approvedData, rejectedData] =
           await Promise.allSettled([
             allContractsPromise,
@@ -339,7 +356,7 @@ export default function AdminContractsPage() {
     }
 
     fetchContracts();
-  }, []);
+  }, [transformApprovedContracts, transformPendingContracts]);
 
   // Filter contracts based on active tab
   const filteredContracts =

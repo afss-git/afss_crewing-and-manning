@@ -46,10 +46,10 @@ export default function AdminOneOffCrewPage() {
   const [selectedContract, setSelectedContract] =
     useState<OneOffContract | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(
-    null
+    null,
   );
   const [contracts, setContracts] = useState<OneOffContract[]>([]);
-  const [assignLoading, setAssignLoading] = useState(false);
+  const [, setAssignLoading] = useState(false);
 
   async function loadContracts() {
     try {
@@ -67,7 +67,7 @@ export default function AdminOneOffCrewPage() {
           setSelectedCandidate((prev) => prev ?? list[0].candidates[0].id);
         }
       }
-    } catch (err) {
+    } catch {
       setContracts([]);
     }
   }
@@ -103,10 +103,9 @@ export default function AdminOneOffCrewPage() {
   const stats = {
     totalContracts: contracts.length,
     openPositions: contracts.filter(
-      (c) => c.status === "open" || c.status === "reviewing"
+      (c) => c.status === "open" || c.status === "reviewing",
     ).length,
-    assignedSeafarers:
-      contracts.filter((c) => c.status === "assigned").length * 4 + 156, // Mock calculation
+    assignedSeafarers: contracts.filter((c) => c.status === "assigned").length,
   };
 
   const handleLogout = () => {
@@ -127,7 +126,7 @@ export default function AdminOneOffCrewPage() {
   const handleSaveDraft = () => {
     if (selectedContract && selectedCandidate) {
       alert(
-        `Saving draft for ${selectedContract.contractId} with selected candidate`
+        `Saving draft for ${selectedContract.contractId} with selected candidate`,
       );
     }
   };
@@ -147,7 +146,7 @@ export default function AdminOneOffCrewPage() {
               Authorization: token ? `Bearer ${token}` : "",
             },
             body: JSON.stringify({ candidateId: selectedCandidate }),
-          }
+          },
         );
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -253,7 +252,7 @@ export default function AdminOneOffCrewPage() {
     selectedContract?.candidates.filter(
       (candidate) =>
         candidate.name.toLowerCase().includes(candidateSearch.toLowerCase()) ||
-        candidate.role.toLowerCase().includes(candidateSearch.toLowerCase())
+        candidate.role.toLowerCase().includes(candidateSearch.toLowerCase()),
     ) || [];
 
   return (
@@ -518,7 +517,7 @@ export default function AdminOneOffCrewPage() {
               Pending (
               {
                 contracts.filter(
-                  (c) => c.status === "open" || c.status === "reviewing"
+                  (c) => c.status === "open" || c.status === "reviewing",
                 ).length
               }
               )
@@ -606,7 +605,7 @@ export default function AdminOneOffCrewPage() {
                         <div className="flex items-center gap-2">
                           <span
                             className={`h-2 w-2 rounded-full ${getPositionTypeColor(
-                              contract.positionType
+                              contract.positionType,
                             )}`}
                           ></span>
                           {contract.position}
@@ -763,8 +762,8 @@ export default function AdminOneOffCrewPage() {
                         candidate.status === "on-contract"
                           ? "border border-gray-200 dark:border-gray-700 opacity-75"
                           : selectedCandidate === candidate.id
-                          ? "border-2 border-primary"
-                          : "border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                            ? "border-2 border-primary"
+                            : "border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                       }`}
                     >
                       <div className="absolute top-3 right-3">
@@ -855,7 +854,7 @@ export default function AdminOneOffCrewPage() {
                             </div>
                             <span
                               className={`text-xs font-bold ${getMatchScoreColor(
-                                candidate.matchScore
+                                candidate.matchScore,
                               )}`}
                             >
                               {candidate.matchScore}% Match
@@ -897,7 +896,7 @@ export default function AdminOneOffCrewPage() {
                       <span className="font-bold text-gray-900 dark:text-white">
                         {selectedCandidate
                           ? selectedContract.candidates.find(
-                              (c) => c.id === selectedCandidate
+                              (c) => c.id === selectedCandidate,
                             )?.name || "None"
                           : "None"}
                       </span>
