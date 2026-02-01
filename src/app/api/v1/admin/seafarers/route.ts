@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../lib/auth";
+import { getAllUsers } from "../../../../../lib/adminData";
+
+type AllUserItem = {
+  user_id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  approved: boolean;
+  documents: unknown[];
+};
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const check = auth.requireAdmin(req as unknown as Request);
@@ -11,36 +23,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 }
-      );
-    }
-
-    // Call the external API with the external token
-    const externalResponse = await fetch("https://crewing-mvp.onrender.com/api/v1/admin/seafarers", {
-      method: "GET",
-      headers: {
-        "accept": "application/json",
-        "Authorization": `Bearer ${externalApiToken}`,
-      },
-    });
-
-    if (!externalResponse.ok) {
-      console.error("External API error:", externalResponse.status, externalResponse.statusText);
-      return NextResponse.json(
-        { detail: `External API error: ${externalResponse.status}` },
-        { status: externalResponse.status }
-      );
-    }
-
-    const data = await externalResponse.json();
-    return NextResponse.json(data, { status: 200 });
-
+    const seafarers = await getAllUsers();
+    const formattedSeafarers = seafarers.map((seafarer: AllUserItem) => ({
+      user_id: seafarer.user_id,
+      email: seafarer.email,
+      first_name: seafarer.first_name,
+      last_name: seafarer.last_name,
+      rank: null, // Not available from getAllUsers, placeholder
+      years_of_experience: null, // Not available from getAllUsers, placeholder
+      is_approved: seafarer.approved, // Map approved to is_approved
+    }));
+    return NextResponse.json(formattedSeafarers, { status: 200 });
   } catch (err: unknown) {
     console.error("Failed to fetch seafarers:", err);
     const message = err instanceof Error ? err.message : String(err);
