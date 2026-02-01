@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 interface Contract {
   id: string;
+  contractNumber?: string;
   type: "full-crew" | "one-off";
   vesselName: string;
   ownerName: string;
@@ -19,6 +20,50 @@ interface Contract {
   statusNote?: string;
   isDraft?: boolean;
   isArchived?: boolean;
+  numericId?: number;
+}
+
+interface PendingContractApi {
+  id: number;
+  contract_number: string;
+  status: string;
+  admin_notes: string | null;
+  vessel_type: string;
+  operational_zone: string;
+  target_start_date: string;
+  expected_duration_months: number;
+  port_of_embarkation: string;
+  port_of_disembarkation: string;
+  positions: Array<{
+    rank_id: string;
+    quantity: number;
+    min_experience_years: number;
+    nationality_preference: string;
+  }>;
+}
+
+interface ApprovedContractApi {
+  id: number;
+  reference_number: string;
+  status: string;
+  admin_notes: string | null;
+  details?: {
+    vessel_type?: string;
+    vessel_name?: string;
+    owner_name?: string;
+    operational_zone?: string;
+    operational_routes?: string;
+    target_start_date?: string;
+    commencement_date?: string;
+    expected_duration_months?: number;
+    duration?: string;
+    port_of_embarkation?: string;
+    port_of_disembarkation?: string;
+    positions?: unknown[];
+    seafarer_name?: string;
+    seafarer_rank?: string;
+    [key: string]: unknown;
+  };
 }
 
 export default function AdminContractsPage() {
@@ -26,71 +71,492 @@ export default function AdminContractsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "drafts" | "archived">(
-    "all"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "all" | "pending-review" | "approved" | "rejected" | "drafts" | "archived"
+  >("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [pendingContracts, setPendingContracts] = useState<Contract[]>([]);
+  const [approvedContracts, setApprovedContracts] = useState<Contract[]>([]);
+  const [rejectedContracts, setRejectedContracts] = useState<Contract[]>([]);
+
+  // Transform pending contracts from API format to frontend format
+  const transformPendingContracts = async (
+    apiData: PendingContractApi[],
+  ): Promise<Contract[]> => {
+    return apiData.map((item) => {
+      const totalPositions =
+        item.positions?.reduce(
+          (sum: number, pos: PendingContractApi["positions"][0]) =>
+            sum + (pos.quantity || 0),
+          0,
+        ) || 0;
+
+      return {
+        id:
+          item.contract_number ||
+          item.id?.toString() ||
+          `contract-${Math.random()}`,
+        contractNumber: item.contract_number,
+        type:
+          totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
+        vesselName: item.vessel_type || "Unknown Vessel",
+        ownerName: item.operational_zone || "Unknown Zone",
+        seafarerName:
+          item.positions?.[0]?.rank_id?.replace(/_/g, " ") || "Multiple Roles",
+        seafarerRank:
+          item.positions?.[0]?.rank_id?.replace(/_/g, " ") || "Various",
+        seafarerAvatar: "",
+        startDate: item.target_start_date
+          ? item.target_start_date.split("T")[0]
+          : "TBD",
+        endDate: calculateEndDate(
+          item.target_start_date,
+          item.expected_duration_months || 12,
+        ),
+        progress: 0,
+        status: (() => {
+          switch (item.status.toLowerCase()) {
+            case "submitted":
+              return "pending";
+            case "approved":
+              return "active";
+            case "rejected":
+              return "suspended";
+            case "completed":
+              return "completed";
+            case "expired":
+              return "expired";
+            default:
+              return "pending";
+          }
+        })(),
+        statusNote: item.admin_notes || undefined,
+        isDraft: false,
+        isArchived: false,
+        numericId: item.id,
+      };
+    });
+  };
+
+  // Transform approved/rejected contracts from API format to frontend format
+  const transformApprovedContracts = async (
+    apiData: ApprovedContractApi[],
+  ): Promise<Contract[]> => {
+    return apiData.map((item) => {
+      const details = item.details || {};
+      const totalPositions = Array.isArray(details.positions)
+        ? details.positions.length
+        : 0;
+
+      return {
+        id:
+          item.reference_number ||
+          item.id?.toString() ||
+          `contract-${Math.random()}`,
+        contractNumber: item.reference_number,
+        type:
+          totalPositions > 3 ? ("full-crew" as const) : ("one-off" as const),
+        vesselName:
+          details.vessel_name || details.vessel_type || "Unknown Vessel",
+        ownerName:
+          details.owner_name ||
+          details.operational_zone ||
+          details.operational_routes ||
+          "Unknown Owner",
+        seafarerName: details.seafarer_name || "Multiple Roles",
+        seafarerRank: details.seafarer_rank || "Various",
+        seafarerAvatar: "",
+        startDate:
+          details.target_start_date || details.commencement_date
+            ? (details.target_start_date || details.commencement_date)!.split(
+                "T",
+              )[0]
+            : "TBD",
+        endDate: calculateEndDate(
+          details.target_start_date || details.commencement_date,
+          details.expected_duration_months ||
+            (details.duration?.includes("Year") ? 12 : 6),
+        ),
+        progress:
+          item.status.toLowerCase() === "completed"
+            ? 100
+            : item.status.toLowerCase() === "approved"
+              ? 50
+              : 0,
+        status: (() => {
+          switch (item.status.toLowerCase()) {
+            case "submitted":
+              return "pending";
+            case "approved":
+              return "active";
+            case "rejected":
+              return "suspended";
+            case "completed":
+              return "completed";
+            case "expired":
+              return "expired";
+            default:
+              return "pending";
+          }
+        })(),
+        statusNote: item.admin_notes || undefined,
+        isDraft: false,
+        isArchived: false,
+        numericId: item.id,
+      };
+    });
+  };
+
+  const calculateEndDate = (
+    startDate: string | undefined,
+    months: number,
+  ): string => {
+    if (!startDate) return "TBD";
+    try {
+      const start = new Date(startDate);
+      start.setMonth(start.getMonth() + months);
+      return start.toISOString().split("T")[0];
+    } catch {
+      return "TBD";
+    }
+  };
 
   // Fetch contracts from backend
   useEffect(() => {
-    let mounted = true;
-    fetch("/api/v1/admin/contracts")
-      .then(async (res) => {
-        if (!res.ok) return [] as Contract[];
-        return (await res.json()) as Contract[];
-      })
-      .then((data) => {
-        if (!mounted) return;
-        setContracts(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!mounted) return;
+    async function fetchContracts() {
+      // Get authentication token from localStorage
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) {
         setContracts([]);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setContracts([]);
+        setPendingContracts([]);
+        return;
+      }
+
+      const allContractsPromise = fetch("/api/v1/admin/contracts", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`Contracts API error: ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
       });
-    return () => {
-      mounted = false;
-    };
+
+      const pendingContractsPromise = fetch("/api/v1/admin/contracts/pending", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }).then(async (res) => {
+        if (!res.ok)
+          throw new Error(`Pending Contracts API error: ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      });
+
+      const approvedContractsPromise = fetch(
+        "/api/v1/admin/contracts/status/approved",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      ).then(async (res) => {
+        if (!res.ok)
+          throw new Error(`Approved Contracts API error: ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      });
+
+      const rejectedContractsPromise = fetch(
+        "/api/v1/admin/contracts/status/rejected",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      ).then(async (res) => {
+        if (!res.ok)
+          throw new Error(`Rejected Contracts API error: ${res.status}`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      });
+
+      try {
+        const rejectedContractsPromise = fetch(
+          "/api/v1/admin/contracts/status/rejected",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        ).then(async (res) => {
+          if (!res.ok)
+            throw new Error(`Rejected Contracts API error: ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        });
+
+        const [allContracts, pendingData, approvedData, rejectedData] =
+          await Promise.allSettled([
+            allContractsPromise,
+            pendingContractsPromise,
+            approvedContractsPromise,
+            rejectedContractsPromise,
+          ]);
+
+        setContracts(
+          allContracts.status === "fulfilled"
+            ? await transformPendingContracts(allContracts.value)
+            : [],
+        );
+        setPendingContracts(
+          pendingData.status === "fulfilled"
+            ? await transformPendingContracts(pendingData.value)
+            : [],
+        );
+        setApprovedContracts(
+          approvedData.status === "fulfilled"
+            ? await transformApprovedContracts(approvedData.value)
+            : [],
+        );
+        setRejectedContracts(
+          rejectedData.status === "fulfilled"
+            ? await transformApprovedContracts(rejectedData.value)
+            : [],
+        );
+      } catch (error) {
+        // Individual promise errors handled above
+        console.error("Failed to fetch contracts:", error);
+        setContracts([]);
+        setPendingContracts([]);
+      }
+    }
+
+    fetchContracts();
   }, []);
 
-  // Filter contracts
-  const filteredContracts = contracts.filter((contract) => {
-    const matchesSearch =
-      contract.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.vesselName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.seafarerName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !typeFilter || contract.type === typeFilter;
-    const matchesStatus = !statusFilter || contract.status === statusFilter;
+  // Filter contracts based on active tab
+  const filteredContracts =
+    activeTab === "pending-review"
+      ? pendingContracts.filter((contract) => {
+          const matchesSearch =
+            String(contract.id)
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            String(contract.vesselName)
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            String(contract.seafarerName)
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase());
+          const matchesType = !typeFilter || contract.type === typeFilter;
+          const matchesStatus =
+            !statusFilter || contract.status === statusFilter;
+          return matchesSearch && matchesType && matchesStatus;
+        })
+      : activeTab === "approved"
+        ? approvedContracts.filter((contract) => {
+            const matchesSearch =
+              String(contract.id)
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+              String(contract.vesselName)
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+              String(contract.seafarerName)
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+            const matchesType = !typeFilter || contract.type === typeFilter;
+            const matchesStatus =
+              !statusFilter || contract.status === statusFilter;
+            return matchesSearch && matchesType && matchesStatus;
+          })
+        : activeTab === "rejected"
+          ? rejectedContracts.filter((contract) => {
+              const matchesSearch =
+                String(contract.id)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase()) ||
+                String(contract.vesselName)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase()) ||
+                String(contract.seafarerName)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase());
+              const matchesType = !typeFilter || contract.type === typeFilter;
+              const matchesStatus =
+                !statusFilter || contract.status === statusFilter;
+              return matchesSearch && matchesType && matchesStatus;
+            })
+          : contracts.filter((contract) => {
+              const matchesSearch =
+                String(contract.id)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase()) ||
+                String(contract.vesselName)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase()) ||
+                String(contract.seafarerName)
+                  .toLowerCase()
+                  .includes(searchQuery.toLowerCase());
+              const matchesType = !typeFilter || contract.type === typeFilter;
+              const matchesStatus =
+                !statusFilter || contract.status === statusFilter;
 
-    // Tab filtering
-    if (activeTab === "drafts")
-      return contract.isDraft && matchesSearch && matchesType && matchesStatus;
-    if (activeTab === "archived")
-      return (
-        contract.isArchived && matchesSearch && matchesType && matchesStatus
-      );
-    return (
-      !contract.isDraft &&
-      !contract.isArchived &&
-      matchesSearch &&
-      matchesType &&
-      matchesStatus
+              // Tab filtering
+              if (activeTab === "drafts")
+                return (
+                  contract.isDraft &&
+                  matchesSearch &&
+                  matchesType &&
+                  matchesStatus
+                );
+              if (activeTab === "archived")
+                return (
+                  contract.isArchived &&
+                  matchesSearch &&
+                  matchesType &&
+                  matchesStatus
+                );
+              return (
+                !contract.isDraft &&
+                !contract.isArchived &&
+                matchesSearch &&
+                matchesType &&
+                matchesStatus
+              );
+            });
+
+  // Calculate expiring soon contracts (within 30 days)
+  const calculateExpiringSoon = (contracts: Contract[]): number => {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(
+      now.getTime() + 30 * 24 * 60 * 60 * 1000,
     );
-  });
+
+    return contracts.filter((contract) => {
+      if (!contract.endDate || contract.endDate === "TBD") return false;
+      if (contract.status !== "active") return false;
+
+      try {
+        const endDate = new Date(contract.endDate);
+        return endDate >= now && endDate <= thirtyDaysFromNow;
+      } catch {
+        return false;
+      }
+    }).length;
+  };
 
   // Stats
   const stats = {
     total: contracts.length,
     active: contracts.filter((c) => c.status === "active").length,
-    expiringSoon: 42, // Mock value
+    expiringSoon: calculateExpiringSoon(contracts),
     pending: contracts.filter((c) => c.status === "pending").length,
   };
 
   const draftsCount = contracts.filter((c) => c.isDraft).length;
+
+  const refreshContractData = async () => {
+    const token = localStorage.getItem("crew-manning-token");
+    if (!token) return;
+
+    console.log("🔄 Refreshing contract data...");
+
+    try {
+      const results = await Promise.allSettled([
+        fetch("/api/v1/admin/contracts", {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(async (res) => {
+          if (!res.ok) throw new Error(`Contracts API error: ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }),
+        fetch("/api/v1/admin/contracts/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(async (res) => {
+          if (!res.ok)
+            throw new Error(`Pending Contracts API error: ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }),
+        fetch("/api/v1/admin/contracts/status/approved", {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(async (res) => {
+          if (!res.ok)
+            throw new Error(`Approved Contracts API error: ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }),
+        fetch("/api/v1/admin/contracts/status/rejected", {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(async (res) => {
+          if (!res.ok)
+            throw new Error(`Rejected Contracts API error: ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }),
+      ]);
+
+      console.log("📊 API call results:", {
+        allContracts:
+          results[0].status === "fulfilled"
+            ? `${results[0].value.length} contracts`
+            : "failed",
+        pendingContracts:
+          results[1].status === "fulfilled"
+            ? `${results[1].value.length} pending`
+            : "failed",
+        approvedContracts:
+          results[2].status === "fulfilled"
+            ? `${results[2].value.length} approved`
+            : "failed",
+        rejectedContracts:
+          results[3].status === "fulfilled"
+            ? `${results[3].value.length} rejected`
+            : "failed",
+      });
+
+      const newContracts =
+        results[0].status === "fulfilled"
+          ? await transformPendingContracts(results[0].value)
+          : [];
+      const newPendingContracts =
+        results[1].status === "fulfilled"
+          ? await transformPendingContracts(results[1].value)
+          : [];
+      const newApprovedContracts =
+        results[2].status === "fulfilled"
+          ? await transformApprovedContracts(results[2].value)
+          : [];
+      const newRejectedContracts =
+        results[3].status === "fulfilled"
+          ? await transformApprovedContracts(results[3].value)
+          : [];
+
+      console.log("📋 Transformed contract counts:", {
+        all: newContracts.length,
+        pending: newPendingContracts.length,
+        approved: newApprovedContracts.length,
+        rejected: newRejectedContracts.length,
+      });
+
+      setContracts(newContracts);
+      setPendingContracts(newPendingContracts);
+      setApprovedContracts(newApprovedContracts);
+      setRejectedContracts(newRejectedContracts);
+
+      console.log("✅ Contract data refreshed successfully");
+    } catch (error) {
+      console.error("Failed to refresh contract data:", error);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("crew-manning-user");
@@ -116,7 +582,126 @@ export default function AdminContractsPage() {
   };
 
   const handleViewContract = (contract: Contract) => {
-    alert(`Viewing contract ${contract.id}`);
+    // Use contract reference number (contractNumber) for routing, fall back to numericId or id
+    const contractId =
+      contract.contractNumber || contract.numericId?.toString() || contract.id;
+    router.push(`/admin/contracts/${contractId}`);
+  };
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    action: "approve" | "reject";
+    contract: Contract | null;
+  }>({ isOpen: false, action: "approve", contract: null });
+
+  const handleConfirmAction = (
+    contract: Contract,
+    action: "approve" | "reject",
+  ) => {
+    setConfirmModal({ isOpen: true, action, contract });
+  };
+
+  const executeContractAction = async () => {
+    if (!confirmModal.contract) return;
+
+    const contract = confirmModal.contract;
+    const action = confirmModal.action;
+
+    console.log(`Contract data for ${action}:`, {
+      contractNumber: contract.contractNumber,
+      numericId: contract.numericId,
+      numericIdType: typeof contract.numericId,
+      id: contract.id,
+      idType: typeof contract.id,
+    });
+
+    // CRITICAL FIX: Use numeric ID for external API calls (external API requires integers)
+    // Map the contract reference to correct numeric ID to avoid ID conflicts
+    let contractId: string;
+
+    if (contract.numericId && typeof contract.numericId === "number") {
+      contractId = contract.numericId.toString();
+      console.log(`🎯 Using numericId: ${contractId} for contract: ${contract.contractNumber}`);
+    } else {
+      console.error(`❌ Numeric ID not available for contract ${contract.contractNumber}:`, {
+        contractNumber: contract.contractNumber,
+        numericId: contract.numericId,
+        numericIdType: typeof contract.numericId,
+        id: contract.id
+      });
+      alert(
+        `Cannot ${action} contract "${contract.contractNumber}": Missing numeric ID. The external API requires database IDs for operations.`,
+      );
+      return;
+    }
+
+    const token = localStorage.getItem("crew-manning-token");
+
+    try {
+      const response = await fetch(
+        `/api/v1/admin/contracts/${contractId}/${action}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        let errorMessage = `${action} failed: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.error("API Error Response:", errorData);
+
+          if (typeof errorData.detail === "string") {
+            errorMessage = errorData.detail;
+          } else if (typeof errorData.detail === "object") {
+            errorMessage = JSON.stringify(errorData.detail, null, 2);
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === "string") {
+            errorMessage = errorData;
+          } else {
+            errorMessage = `${action} failed: ${response.status} - ${JSON.stringify(errorData)}`;
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+          errorMessage = `${action} failed: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      console.log(`✅ Contract ${action}d successfully! Refreshing data...`);
+
+      // Add a small delay to ensure external API has processed the change
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Refresh all contract data to show updated status
+      await refreshContractData();
+
+      setConfirmModal({ isOpen: false, action: "approve", contract: null });
+
+      // Show success message
+      alert(`Contract ${action}d successfully! Status updated.`);
+    } catch (error) {
+      console.error(`${action} contract error:`, error);
+
+      let errorMessage;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        errorMessage = JSON.stringify(error, null, 2);
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else {
+        errorMessage = `Failed to ${action} contract. Please try again.`;
+      }
+
+      console.error(`Final error message:`, errorMessage);
+      alert(errorMessage);
+    }
   };
 
   const getStatusBadge = (status: Contract["status"]) => {
@@ -133,6 +718,23 @@ export default function AdminContractsPage() {
         return "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400";
       default:
         return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusLabel = (status: Contract["status"]) => {
+    switch (status) {
+      case "active":
+        return "Active";
+      case "pending":
+        return "Pending Review";
+      case "completed":
+        return "Completed";
+      case "suspended":
+        return "Rejected";
+      case "expired":
+        return "Expired";
+      default:
+        return "Unknown";
     }
   };
 
@@ -312,13 +914,13 @@ export default function AdminContractsPage() {
                 </p>
                 <div className="flex items-end justify-between mt-2">
                   <h3 className="text-2xl font-bold text-[#0e121b] dark:text-white">
-                    1,248
+                    {stats.total}
                   </h3>
                   <span className="text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">
                       trending_up
                     </span>{" "}
-                    +12%
+                    +{((stats.pending / stats.total) * 100).toFixed(0)}%
                   </span>
                 </div>
               </div>
@@ -327,9 +929,16 @@ export default function AdminContractsPage() {
                   Active
                 </p>
                 <div className="flex items-end justify-between mt-2">
-                  <h3 className="text-2xl font-bold text-primary">856</h3>
+                  <h3 className="text-2xl font-bold text-primary">
+                    {stats.active}
+                  </h3>
                   <div className="h-1.5 w-16 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary w-[70%]"></div>
+                    <div
+                      className="h-full bg-primary"
+                      style={{
+                        width: `${(stats.active / stats.total) * 100}%`,
+                      }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -350,7 +959,7 @@ export default function AdminContractsPage() {
                 </p>
                 <div className="flex items-end justify-between mt-2">
                   <h3 className="text-2xl font-bold text-gray-600 dark:text-gray-300">
-                    124
+                    {stats.pending}
                   </h3>
                   <span className="material-symbols-outlined text-[20px] text-gray-400">
                     hourglass_top
@@ -427,6 +1036,36 @@ export default function AdminContractsPage() {
                 All Contracts
               </button>
               <button
+                onClick={() => setActiveTab("pending-review")}
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "pending-review"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-[#506795] hover:text-[#0e121b] dark:text-gray-400 dark:hover:text-white"
+                } transition-colors`}
+              >
+                Pending Review ({pendingContracts.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("approved")}
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "approved"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-[#506795] hover:text-[#0e121b] dark:text-gray-400 dark:hover:text-white"
+                } transition-colors`}
+              >
+                Approved ({approvedContracts.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("rejected")}
+                className={`px-4 py-3 text-sm font-medium ${
+                  activeTab === "rejected"
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-[#506795] hover:text-[#0e121b] dark:text-gray-400 dark:hover:text-white"
+                } transition-colors`}
+              >
+                Rejected ({rejectedContracts.length})
+              </button>
+              <button
                 onClick={() => setActiveTab("drafts")}
                 className={`px-4 py-3 text-sm font-medium ${
                   activeTab === "drafts"
@@ -477,18 +1116,20 @@ export default function AdminContractsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e8ebf3] dark:divide-[#2a2e3b]">
-                  {filteredContracts.map((contract) => (
+                  {filteredContracts.map((contract, index) => (
                     <tr
-                      key={contract.id}
+                      key={`${contract.id}-${index}`}
                       className="group hover:bg-[#fcf8f8] dark:hover:bg-[#201c1c] transition-colors"
                     >
                       <td className="px-6 py-4">
-                        <button
+                        <a
                           onClick={() => handleViewContract(contract)}
-                          className="text-primary font-medium hover:underline decoration-primary"
+                          className="text-primary font-medium hover:underline decoration-primary cursor-pointer"
+                          role="button"
+                          tabIndex={0}
                         >
-                          {contract.id}
-                        </button>
+                          {contract.contractNumber || contract.id}
+                        </a>
                       </td>
                       <td className="px-6 py-4">
                         {getTypeBadge(contract.type)}
@@ -555,54 +1196,78 @@ export default function AdminContractsPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${getStatusBadge(
-                            contract.status
+                            contract.status,
                           )}`}
                         >
-                          {contract.status.charAt(0).toUpperCase() +
-                            contract.status.slice(1)}
+                          {getStatusLabel(contract.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right relative">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {contract.status === "active" ||
-                          contract.status === "pending" ? (
-                            <button
-                              onClick={() => handleEditContract(contract)}
-                              className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
-                              title="Edit"
-                            >
-                              <span className="material-symbols-outlined text-[20px]">
-                                edit
-                              </span>
-                            </button>
+                          {contract.status === "pending" ? (
+                            <>
+                              <button
+                                onClick={() =>
+                                  handleConfirmAction(contract, "approve")
+                                }
+                                className="text-green-600 hover:text-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded"
+                                title="Approve"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  check_circle
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleConfirmAction(contract, "reject")
+                                }
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
+                                title="Reject"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  cancel
+                                </span>
+                              </button>
+                            </>
                           ) : (
-                            <button
-                              onClick={() => handleViewContract(contract)}
-                              className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
-                              title="View"
-                            >
-                              <span className="material-symbols-outlined text-[20px]">
-                                visibility
-                              </span>
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleViewContract(contract)}
+                                className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
+                                title="View Details"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  visibility
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => handleDownloadContract(contract)}
+                                className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
+                                title="Download"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  download
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => handleEditContract(contract)}
+                                className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
+                                title="Edit"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  edit
+                                </span>
+                              </button>
+                              <button
+                                className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
+                                title="More"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  more_vert
+                                </span>
+                              </button>
+                            </>
                           )}
-                          <button
-                            onClick={() => handleDownloadContract(contract)}
-                            className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
-                            title="Download"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              download
-                            </span>
-                          </button>
-                          <button
-                            className="p-1 rounded text-[#506795] hover:text-primary hover:bg-[#f3e6e6] dark:hover:bg-primary/20"
-                            title="More"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              more_vert
-                            </span>
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -636,7 +1301,7 @@ export default function AdminContractsPage() {
                 </span>{" "}
                 of{" "}
                 <span className="font-medium text-[#0e121b] dark:text-white">
-                  248
+                  {stats.total}
                 </span>{" "}
                 results
               </p>
@@ -689,6 +1354,77 @@ export default function AdminContractsPage() {
           </div>
         </div>
       </main>
+
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1a202c] rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    confirmModal.action === "approve"
+                      ? "bg-green-100 dark:bg-green-900/30"
+                      : "bg-red-100 dark:bg-red-900/30"
+                  }`}
+                >
+                  <span
+                    className={`material-symbols-outlined text-2xl ${
+                      confirmModal.action === "approve"
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {confirmModal.action === "approve"
+                      ? "check_circle"
+                      : "cancel"}
+                  </span>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-[#0e121b] dark:text-white">
+                    {confirmModal.action === "approve" ? "Approve" : "Reject"}{" "}
+                    Contract
+                  </h3>
+                  <p className="text-sm text-[#506795]">
+                    Contract:{" "}
+                    {confirmModal.contract?.contractNumber ||
+                      confirmModal.contract?.id}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-[#506795] mb-6">
+                Are you sure you want to {confirmModal.action} this contract?
+                {confirmModal.action === "reject" &&
+                  " This action will mark it as rejected with admin notes."}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() =>
+                    setConfirmModal({
+                      isOpen: false,
+                      action: "approve",
+                      contract: null,
+                    })
+                  }
+                  className="px-4 py-2 text-[#506795] bg-gray-100 dark:bg-[#2a2e3b] rounded-lg hover:bg-gray-200 dark:hover:bg-[#3a3f4b] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeContractAction}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    confirmModal.action === "approve"
+                      ? "bg-green-600 text-white hover:bg-green-700"
+                      : "bg-red-600 text-white hover:bg-red-700"
+                  }`}
+                >
+                  {confirmModal.action === "approve" ? "Approve" : "Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { doc_id: string } }
+  { params }: { params: Promise<{ doc_id: string }> }
 ) {
   const check = auth.requireAdmin(req as unknown as Request);
   if (!check.ok) {
@@ -17,7 +17,7 @@ export async function PUT(
     );
   }
 
-  const { doc_id } = params;
+  const { doc_id } = await params;
   if (!doc_id) {
     return NextResponse.json(
       {

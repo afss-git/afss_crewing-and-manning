@@ -3,7 +3,37 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AdminProfile from "../../../components/AdminProfile";
 
+interface CompanyData {
+  user_id: number;
+  email: string;
+  user_type: "ship_owner" | "manning_agent";
+  is_verified: boolean;
+  is_approved: boolean;
+  company: {
+    name: string;
+    imo_number: string | null;
+    website: string | null;
+    hq_address: string;
+    vessel_types: string[];
+    fleet_size: string;
+    primary_trading_area: string;
+    contact_full_name: string;
+    contact_role: string;
+    contact_email: string;
+    contact_phone: string;
+    documents: Array<{
+      id: number;
+      file_name: string;
+      file_url: string;
+      doc_index: number;
+      uploaded_at: string;
+    }>;
+  };
+}
+
+// Keep the existing Entity interface for UI compatibility
 interface Entity {
   id: string;
   name: string;
@@ -45,16 +75,43 @@ export default function AdminShipOwnersPage() {
 
   useEffect(() => {
     let mounted = true;
-    fetch("/api/v1/admin/shipowners")
-      .then(async (res) => (res.ok ? ((await res.json()) as Entity[]) : []))
+
+    // Fetch companies data from the new endpoint
+    fetch("/api/v1/admin/companies")
+      .then(async (res) => {
+        if (!res.ok) return [];
+        const companiesData: CompanyData[] = await res.json();
+
+        // Transform to Entity format for UI compatibility
+        const transformedEntities: Entity[] = companiesData.map((company) => ({
+          id: company.user_id.toString(),
+          name: company.company.name,
+          website: company.company.website || '',
+          type: company.user_type === 'ship_owner' ? 'owner' : 'agent',
+          idCode: company.company.imo_number || company.user_id.toString(),
+          location: company.company.hq_address.split(',')[0] || 'Unknown',
+          country: 'NG', // Default for now
+          activeContracts: 0, // We'll need to calculate this from actual contract data
+          maxContracts: 10, // Default max
+          status: company.is_approved ? 'active' : company.is_verified ? 'pending' : 'pending',
+          logo: '', // Could use a default logo
+          email: company.email,
+          phone: company.company.contact_phone,
+          address: company.company.hq_address,
+        }));
+
+        return transformedEntities;
+      })
       .then((data) => {
         if (!mounted) return;
         setEntities(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Failed to fetch companies:', error);
         if (!mounted) return;
         setEntities([]);
       });
+
     return () => {
       mounted = false;
     };
@@ -242,32 +299,7 @@ export default function AdminShipOwnersPage() {
           </nav>
 
           {/* User Profile */}
-          <div className="p-4 border-t border-[#d1d8e6] dark:border-[#2d3748]">
-            <div className="flex items-center gap-3">
-              <div
-                className="size-9 rounded-full bg-cover bg-center"
-                style={{
-                  backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuCBhd8WFwF4Rl9aFH19FsZEih9Nj-8JlKARbGyBAlrd8O2wN5JXMXFDZdQeNvv7Nib9gcVjiz5Tv3Sc8Q-H0bg2Mw9q4fyDlb9FyxSdJCCdW1IjWTsv9Gux6m0SMZLVGw4aYxzxrg5qTcC9uyNc3QfubenhsZNUeQ3k9Y3z60Svwb0cybvMSdE8in7c3TtKQbuSXDdEU83_gbqvBlSoCVCxG7Zs4JgG-wUUyiAOE59mZ7A0xel4Afzg9gy_1jprHX952WCcOkx78rOJ')`,
-                }}
-              ></div>
-              <div className="hidden lg:flex flex-col overflow-hidden">
-                <p className="text-sm font-semibold truncate">
-                  Jane Administrator
-                </p>
-                <p className="text-xs text-[#506795] dark:text-[#94a3b8] truncate">
-                  jane@maritimeops.com
-                </p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="hidden lg:flex ml-auto text-[#506795] hover:text-primary dark:hover:text-red-400"
-              >
-                <span className="material-symbols-outlined text-xl">
-                  logout
-                </span>
-              </button>
-            </div>
-          </div>
+          <AdminProfile />
         </div>
       </aside>
 

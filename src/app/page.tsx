@@ -406,7 +406,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/60">
-            <p>© 2023 CrewManning Platform. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} CrewManning Platform. All rights reserved.</p>
             <div className="flex gap-6">
               <a className="hover:text-white" href="#">
                 Privacy Policy

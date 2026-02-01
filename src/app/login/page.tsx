@@ -195,7 +195,7 @@ export default function LoginPage() {
               </div>
             </form>
             <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
-              <p>© 2024 CrewManager Platform. All rights reserved.</p>
+              <p>© {new Date().getFullYear()} CrewManager Platform. All rights reserved.</p>
               <p className="mt-1">
                 Need help?{" "}
                 <a className="text-primary hover:underline" href="#">

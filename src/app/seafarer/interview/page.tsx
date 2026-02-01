@@ -356,7 +356,7 @@ export default function InterviewPage() {
       {/* Simple Footer */}
       <footer className="border-t border-border-color dark:border-gray-800 bg-card-light dark:bg-card-dark py-6 mt-auto">
         <div className="px-6 md:px-12 lg:px-20 mx-auto max-w-[1440px] text-center md:text-left flex flex-col md:flex-row justify-between items-center text-sm text-text-muted">
-          <p>© 2023 Maritime Crewing Management. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Maritime Crewing Management. All rights reserved.</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a className="hover:text-primary" href="#">
               Help Center

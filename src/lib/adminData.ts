@@ -123,3 +123,20 @@ export async function getPendingUsers(): Promise<any> {
   }
   return pending;
 }
+
+export async function getAllUsers(): Promise<any> {
+  const users = await prisma.user.findMany({
+    include: {
+      documents: true
+    }
+  });
+
+  return users.map(user => ({
+    user_id: user.id,
+    email: user.email,
+    first_name: user.firstName,
+    last_name: user.lastName,
+    approved: user.approved,
+    documents: user.documents || [],
+  }));
+}

@@ -7,7 +7,7 @@ import {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { user_id: string } }
+  { params }: { params: Promise<{ user_id: string }> }
 ) {
   const check = auth.requireAdmin(req as unknown as Request);
   if (!check.ok) {
@@ -17,7 +17,7 @@ export async function POST(
     );
   }
 
-  const { user_id } = params;
+  const { user_id } = await params;
   if (!user_id) {
     return NextResponse.json(
       {

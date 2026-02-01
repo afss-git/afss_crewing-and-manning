@@ -442,7 +442,7 @@ export default function DocumentsPage() {
             </div>
           </div>
           <footer className="mt-20 py-6 text-center text-sm text-gray-400">
-            © 2024 Maritime Ops. All rights reserved.
+            © {new Date().getFullYear()} Maritime Ops. All rights reserved.
           </footer>
         </div>
       </main>

@@ -199,12 +199,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         normalizedRole = "shipowner";
       }
 
+      // Set proper name and title based on role
+      let userName = email.split("@")[0]; // Default to email prefix
+      let userTitle = undefined;
+
+      if (normalizedRole === "admin") {
+        userName = "Administrator"; // Professional admin name
+        userTitle = "System Administrator";
+      } else if (normalizedRole === "seafarer") {
+        // Keep existing seafarer logic - name will be updated from profile later
+        userName = email.split("@")[0];
+      } else if (normalizedRole === "shipowner") {
+        userName = email.split("@")[0]; // Could be enhanced later
+        userTitle = "Fleet Manager";
+      }
+
       // Create user object from token data
       const apiUser: User = {
         id: decoded.sub,
-        name: email.split("@")[0], // Use email prefix as name for now
+        name: userName,
         email: decoded.sub,
         role: normalizedRole as UserRole,
+        title: userTitle,
         accessToken: access_token,
       };
 

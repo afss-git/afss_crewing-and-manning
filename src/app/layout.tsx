@@ -1,4 +1,9 @@
+import { Metadata } from 'next';
 import { AuthProvider } from "@/context/AuthContext";
+
+export const metadata: Metadata = {
+  title: 'CrewManning Platform - Maritime Staffing Solutions',
+};
 
 export default function RootLayout({
   children,
@@ -8,10 +13,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="light">
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>CrewManning Platform - Maritime Staffing Solutions</title>
-        {/* Google Fonts and Material Symbols */}
         <link href="https://fonts.googleapis.com" rel="preconnect" />
         <link
           href="https://fonts.gstatic.com"
@@ -27,9 +28,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@400&display=swap"
           rel="stylesheet"
         />
+        <style>{`.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }`}</style>
         {/* Tailwind CDN with plugins */}
         <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
         {/* Tailwind custom config */}
@@ -65,7 +67,6 @@ export default function RootLayout({
         `,
           }}
         />
-        <style>{`.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }`}</style>
       </head>
       <body className="bg-background-light dark:bg-background-dark text-[#1b0e0e] dark:text-gray-100 font-display transition-colors duration-200">
         <AuthProvider>{children}</AuthProvider>

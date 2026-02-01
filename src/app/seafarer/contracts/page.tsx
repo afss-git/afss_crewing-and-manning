@@ -1,5 +1,7 @@
 "use client";
 
+import SeafarerSidebarProfile from "../../../components/SeafarerSidebarProfile";
+
 export default function ContractsPage() {
   return (
     <div className="bg-background-light dark:bg-background-dark text-[#0e121b] font-display overflow-hidden">
@@ -91,27 +93,7 @@ export default function ContractsPage() {
               </a>
             </nav>
             {/* User Profile */}
-            <div className="flex items-center gap-3 px-3 py-3 mt-auto rounded-lg bg-[#f8f9fb] border border-[#e8ebf3]">
-              <div
-                className="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0"
-                style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBHSstHu3ySCe2R4o3FdOBapgFMb_lB6V65xcccXaRvBvPNF-INh0EKm4q3qNEiiflcCLKcfoBIMajJRNfYer5xT2_pr-qejpu3vUCihOTFp52y3OqQwDtyfeVxeqkKFClEhtOJrbVWbEyzXg0PlFGtTNX-yrA1IqBLCPylqP7k-uK7hKnC5ONDP7-YSzfyP0XrWzXC2GW959JYLe0iycEbUSY2c3mKFpjlYm3HM8MlzfCT05o2UpVkFXHapZPIBRp8I2A7zlAeQ7sV')",
-                }}
-                data-alt="Portrait of a smiling user"
-              ></div>
-              <div className="flex flex-col overflow-hidden">
-                <p className="text-[#0e121b] text-sm font-bold truncate">
-                  Capt. James T.
-                </p>
-                <p className="text-[#506795] text-xs truncate">Crew Manager</p>
-              </div>
-              <button className="ml-auto text-[#506795] hover:text-primary">
-                <span className="material-symbols-outlined text-[20px]">
-                  logout
-                </span>
-              </button>
-            </div>
+            <SeafarerSidebarProfile />
           </div>
         </aside>
         {/* Main Content */}

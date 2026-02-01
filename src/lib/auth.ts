@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import { createHash, createHmac, randomBytes } from "crypto";
 
 function base64urlEncode(input: Buffer) {
   return input
@@ -22,8 +22,7 @@ export function verifyJwt(token: string, secret: string) {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const [headerB64, payloadB64, sigB64] = parts;
-    const signature = crypto
-      .createHmac("sha256", secret)
+    const signature = createHmac("sha256", secret)
       .update(`${headerB64}.${payloadB64}`)
       .digest();
     const expected = base64urlEncode(signature);
@@ -58,8 +57,7 @@ export function signJwt(payload: object, secret: string) {
   const header = { alg: "HS256", typ: "JWT" };
   const headerB = base64urlEncode(Buffer.from(JSON.stringify(header)));
   const payloadB = base64urlEncode(Buffer.from(JSON.stringify(payload)));
-  const sig = crypto
-    .createHmac("sha256", secret)
+  const sig = createHmac("sha256", secret)
     .update(`${headerB}.${payloadB}`)
     .digest();
   const sigB = base64urlEncode(sig);

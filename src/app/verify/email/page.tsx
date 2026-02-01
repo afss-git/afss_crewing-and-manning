@@ -1,8 +1,8 @@
 "use client";
-import React, { useRef, useState, useEffect } from "react";
+import React, { Suspense, useRef, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function EmailVerification() {
+function EmailVerificationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams?.get("email") || "";
@@ -401,5 +401,13 @@ export default function EmailVerification() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EmailVerificationPage />
+    </Suspense>
   );
 }

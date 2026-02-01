@@ -4,95 +4,236 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-interface CrewMember {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  joinDate: string;
-  status: "onboard" | "rotation-due" | "leave";
-  daysLeft?: number;
+interface CrewManagementApi {
+  id: number;
+  reference_number: string;
+  status: string;
+  admin_notes: string;
+  vessel_name: string;
+  imo_number: string;
+  vessel_type: string;
+  vessel_flag: string;
+  operational_routes: string;
+  services: string[];
+  commencement_date: string;
+  duration: string;
+  documents: Array<{
+    id: number;
+    file_name: string;
+    file_url: string;
+    file_size: string;
+    uploaded_at: string;
+  }>;
 }
 
-interface Contract {
+// Same structure for detailed API response (extends the base interface)
+
+interface CrewManagementRequest {
   id: string;
-  refId: string;
+  referenceNumber: string;
+  refId: string; // Alias for compatibility
   vesselName: string;
   vesselType: string;
-  vesselImo: string;
-  vesselImage: string;
-  client: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  crewAssigned: number;
-  crewTotal: number;
-  status: "active" | "renewal-due" | "pending" | "expired";
-  scope: string;
-  manningAgent: string;
-  crew: CrewMember[];
+  imoNumber: string;
+  vesselFlag: string;
+  operationalRoutes: string;
+  services: string[];
+  commencementDate: string;
+  duration: string;
+  status: "pending" | "approved" | "rejected";
+  adminNotes: string;
+  scope: string; // computed from services
+  client: string; // N/A in this API
+  manningAgent: string; // N/A in this API
+  crewAssigned: number; // not in API, use documents count as proxy
+  crew: Array<{
+    id: string;
+    name: string;
+    role: string;
+    avatar: string;
+    joinDate: string;
+    status: string;
+    daysLeft?: number;
+  }>; // empty array
+  crewTotal: number; // not in API
+  vesselImage: string; // not in API
+  vesselImo: string; // alias for imoNumber
+  startDate: string; // alias for commencementDate
+  endDate: string; // computed
+  progress: number; // mock value
+  documents: Array<{
+    id: number;
+    file_name: string;
+    file_url: string;
+    file_size: string;
+    uploaded_at: string;
+  }>;
 }
 
 export default function AdminCrewManagementPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [selectedContract, setSelectedContract] = useState<Contract | null>(
+  const [selectedContract, setSelectedContract] = useState<CrewManagementRequest | null>(
     null
   );
   const [activeTab, setActiveTab] = useState<
     "crew" | "documents" | "financials"
   >("crew");
 
-  // Mock data removed — load crew contracts from API
-  const [contracts, setContracts] = useState<Contract[]>([]);
+  // Load crew requests from API
+  const [crewManagementRequests, setCrewManagementRequests] = useState<CrewManagementRequest[]>([]);
+  const [selectedContractDetails, setSelectedContractDetails] = useState<CrewManagementApi | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState<'approve' | 'reject'>('approve');
+  const [rejectionNotes, setRejectionNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    fetch("/api/v1/admin/crew-contracts")
-      .then(async (res) => (res.ok ? ((await res.json()) as Contract[]) : []))
-      .then((data) => {
-        if (!mounted) return;
-        const list = Array.isArray(data) ? data : [];
-        setContracts(list);
-        if (list.length > 0) {
-          setSelectedContract((prev) => prev ?? list[0]);
+    async function fetchCrewManagement() {
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) {
+        setCrewManagementRequests([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/v1/admin/crew-management", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setContracts([]);
-      });
-    return () => {
-      mounted = false;
-    };
+
+        const data: CrewManagementApi[] = await response.json();
+
+        // Transform API data to our UI format
+        // NOTE: API doesn't provide actual crew counts, using services-based estimate
+        const estimateCrewFromServices = (services: string[]): number => {
+          // Estimate crew size based on services - full_crewing typically needs 15-30 crew
+          if (services.includes('full_crewing')) return 22; // Average full crew
+          return 0; // No specific crew data from API
+        };
+
+        const transformedData: CrewManagementRequest[] = data.map((item) => ({
+          id: item.id.toString(),
+          referenceNumber: item.reference_number,
+          refId: item.reference_number, // Alias for compatibility
+          vesselName: item.vessel_name,
+          vesselType: item.vessel_type,
+          imoNumber: item.imo_number || "N/A",
+          vesselFlag: item.vessel_flag || "N/A",
+          operationalRoutes: item.operational_routes || "",
+          services: item.services || [],
+          client: "N/A", // Not provided in API
+          commencementDate: item.commencement_date || "TBD",
+          startDate: item.commencement_date ? new Date(item.commencement_date).toLocaleDateString() : "TBD",
+          duration: item.duration || "N/A",
+          status: item.status as "pending" | "approved" | "rejected",
+          adminNotes: item.admin_notes || "",
+          scope: item.services?.join(", ") || "N/A",
+          manningAgent: "N/A", // Not in API
+          crewAssigned: estimateCrewFromServices(item.services),
+          crew: [], // Empty since crew data not in this API
+          crewTotal: estimateCrewFromServices(item.services),
+          vesselImage: "",
+          vesselImo: item.imo_number || "N/A",
+          endDate: "TBD", // Not in API
+          progress: 0, // Mock value
+          documents: item.documents || [],
+        }));
+
+        setCrewManagementRequests(transformedData);
+
+        // Auto-select first contract and fetch its details
+        if (transformedData.length > 0) {
+          const firstContract = transformedData[0];
+          setSelectedContract(firstContract);
+          fetchContractDetail(firstContract.id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch crew management:", error);
+        setCrewManagementRequests([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCrewManagement();
   }, []);
 
-  // Filter contracts
-  const filteredContracts = contracts.filter((contract) => {
+  // Filter crew management requests
+  const filteredContracts = crewManagementRequests.filter((contract) => {
     const matchesSearch =
       contract.vesselName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contract.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.refId.toLowerCase().includes(searchQuery.toLowerCase());
+      contract.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter =
       activeFilter === "all" ||
-      (activeFilter === "active" && contract.status === "active") ||
+      (activeFilter === "active" && contract.status === "approved") ||
       (activeFilter === "pending" && contract.status === "pending") ||
-      (activeFilter === "renewal" && contract.status === "renewal-due") ||
-      (activeFilter === "expired" && contract.status === "expired");
+      (activeFilter === "renewal" && contract.status === "rejected"); // Mapped renewal to rejected
     return matchesSearch && matchesFilter;
   });
 
-  // Stats
+  // Calculate actual statistics based on available API data
+  const approvedContracts = crewManagementRequests.filter((c) => c.status === "approved").length;
+  const activeRequests = crewManagementRequests.filter((c) =>
+    c.status === "approved" || c.status === "pending"
+  ).length;
+
+  // Stats - using available data from API only (removing all mock data)
   const stats = {
-    activeContracts: contracts.filter((c) => c.status === "active").length,
-    totalCrewDeployed: contracts.reduce((sum, c) => sum + c.crewAssigned, 0),
-    complianceRate: 98.5,
-    upcomingExpirations: contracts.filter((c) => c.status === "renewal-due")
-      .length,
+    totalContracts: crewManagementRequests.length,
+    activeContracts: approvedContracts,
+    pendingContracts: crewManagementRequests.filter((c) => c.status === "pending").length,
+    rejectedContracts: crewManagementRequests.filter((c) => c.status === "rejected").length,
   };
 
-  // Initial selection handled after fetching contracts
+  // Fetch detailed contract data on selection
+  const fetchContractDetail = async (contractId: string) => {
+    try {
+      setDetailLoading(true);
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) return;
+
+      const response = await fetch(`/api/v1/admin/crew-management/${contractId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to fetch detailed contract data:", response.status);
+        return;
+      }
+
+      const detailedData: CrewManagementApi = await response.json();
+      setSelectedContractDetails(detailedData);
+    } catch (error) {
+      console.error("Error fetching contract details:", error);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Handle contract selection (fetch details if clicked again)
+  const handleContractClick = (contract: CrewManagementRequest) => {
+    setSelectedContract(contract);
+
+    // Always fetch fresh details when clicking
+    fetchContractDetail(contract.id);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("crew-manning-user");
@@ -113,6 +254,106 @@ export default function AdminCrewManagementPage() {
     alert("Opening roster management...");
   };
 
+  const handleApprove = async (confirmed = false) => {
+    if (!selectedContract) return;
+
+    if (!confirmed) {
+      // Show confirmation modal
+      setModalType('approve');
+      setRejectionNotes('');
+      setShowModal(true);
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) return;
+
+      const response = await fetch(`/api/v1/admin/crew-management/${selectedContract.id}/approve`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: "",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to approve request`);
+      }
+
+      // Close modal
+      setShowModal(false);
+
+      // Refresh the contract data or show success message
+      alert(`${selectedContract.vesselName} has been approved successfully!`);
+
+      // Refresh the contracts list to show updated status
+      window.location.reload();
+
+    } catch (error) {
+      console.error("Failed to approve request:", error);
+      alert("Failed to approve the request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async (confirmed = false) => {
+    if (!selectedContract) return;
+
+    if (!confirmed) {
+      // Show rejection modal
+      setModalType('reject');
+      setRejectionNotes('');
+      setShowModal(true);
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) return;
+
+      const response = await fetch(`/api/v1/admin/crew-management/${selectedContract.id}/reject`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: rejectionNotes.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to reject request`);
+      }
+
+      // Close modal
+      setShowModal(false);
+
+      // Refresh the contract data or show success message
+      alert(`${selectedContract.vesselName} has been rejected successfully.`);
+
+      // Refresh the contracts list to show updated status
+      window.location.reload();
+
+    } catch (error) {
+      console.error("Failed to reject request:", error);
+      alert("Failed to reject the request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (modalType === 'approve') {
+      handleApprove(true);
+    } else {
+      handleReject(true);
+    }
+  };
+
   const handleDemobilize = () => {
     if (selectedContract) {
       alert(`Demobilizing crew from ${selectedContract.vesselName}`);
@@ -125,34 +366,27 @@ export default function AdminCrewManagementPage() {
     }
   };
 
-  const getStatusBadge = (status: Contract["status"]) => {
+  const getStatusBadge = (status: CrewManagementRequest["status"]) => {
     switch (status) {
-      case "active":
+      case "approved":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>{" "}
-            Active
-          </span>
-        );
-      case "renewal-due":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800">
-            <span className="h-1.5 w-1.5 rounded-full bg-orange-500"></span>{" "}
-            Renewal Due
+            Approved
           </span>
         );
       case "pending":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
-            <span className="h-1.5 w-1.5 rounded-full bg-gray-400"></span>{" "}
-            Pending
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800">
+            <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>{" "}
+            Pending Review
           </span>
         );
-      case "expired":
+      case "rejected":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>{" "}
-            Expired
+            Rejected
           </span>
         );
       default:
@@ -331,7 +565,7 @@ export default function AdminCrewManagementPage() {
           </div>
         </div>
 
-        {/* KPI Stats Cards */}
+        {/* KPI Stats Cards - All data correlated with actual API response */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -340,74 +574,56 @@ export default function AdminCrewManagementPage() {
               </span>
             </div>
             <p className="text-gray-500 font-medium text-sm uppercase tracking-wider">
-              Active Contracts
+              Total Contracts
             </p>
-            <div className="flex items-end gap-3">
+            <div className="flex items-start justify-between mt-2">
               <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.activeContracts}
-              </span>
-              <span className="text-green-600 text-sm font-medium mb-1 flex items-center bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                <span className="material-symbols-outlined text-[14px] mr-1">
-                  trending_up
-                </span>{" "}
-                +2%
-              </span>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
-            <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <span className="material-symbols-outlined text-6xl text-blue-600">
-                groups
-              </span>
-            </div>
-            <p className="text-gray-500 font-medium text-sm uppercase tracking-wider">
-              Total Crew Deployed
-            </p>
-            <div className="flex items-end gap-3">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.totalCrewDeployed}
-              </span>
-              <span className="text-green-600 text-sm font-medium mb-1 flex items-center bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                <span className="material-symbols-outlined text-[14px] mr-1">
-                  trending_up
-                </span>{" "}
-                +12%
+                {stats.totalContracts}
               </span>
             </div>
           </div>
           <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <span className="material-symbols-outlined text-6xl text-green-600">
-                verified_user
+                check_circle
               </span>
             </div>
             <p className="text-gray-500 font-medium text-sm uppercase tracking-wider">
-              Compliance Rate
+              Approved
             </p>
-            <div className="flex items-end gap-3">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.complianceRate}%
-              </span>
-              <span className="text-gray-400 text-sm font-medium mb-1">
-                Target: 98%
+            <div className="flex items-start justify-between mt-2">
+              <span className="text-3xl font-bold text-green-600">
+                {stats.activeContracts}
               </span>
             </div>
           </div>
           <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
             <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <span className="material-symbols-outlined text-6xl text-orange-500">
-                warning
+              <span className="material-symbols-outlined text-6xl text-yellow-500">
+                pending
               </span>
             </div>
             <p className="text-gray-500 font-medium text-sm uppercase tracking-wider">
-              Upcoming Expirations
+              Pending Review
             </p>
-            <div className="flex items-end gap-3">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.upcomingExpirations}
+            <div className="flex items-start justify-between mt-2">
+              <span className="text-3xl font-bold text-yellow-600">
+                {stats.pendingContracts}
               </span>
-              <span className="text-orange-600 text-sm font-medium mb-1 flex items-center bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
-                Next 30 days
+            </div>
+          </div>
+          <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <span className="material-symbols-outlined text-6xl text-red-500">
+                cancel
+              </span>
+            </div>
+            <p className="text-gray-500 font-medium text-sm uppercase tracking-wider">
+              Rejected
+            </p>
+            <div className="flex items-start justify-between mt-2">
+              <span className="text-3xl font-bold text-red-600">
+                {stats.rejectedContracts}
               </span>
             </div>
           </div>
@@ -464,7 +680,7 @@ export default function AdminCrewManagementPage() {
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
             >
-              Active ({contracts.filter((c) => c.status === "active").length})
+              Approved ({crewManagementRequests.filter((c) => c.status === "approved").length})
             </button>
             <button
               onClick={() => setActiveFilter("pending")}
@@ -474,8 +690,7 @@ export default function AdminCrewManagementPage() {
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
             >
-              Pending Review (
-              {contracts.filter((c) => c.status === "pending").length})
+              Pending Review ({crewManagementRequests.filter((c) => c.status === "pending").length})
             </button>
             <button
               onClick={() => setActiveFilter("renewal")}
@@ -485,8 +700,7 @@ export default function AdminCrewManagementPage() {
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
             >
-              Renewal Due (
-              {contracts.filter((c) => c.status === "renewal-due").length})
+              Rejected ({crewManagementRequests.filter((c) => c.status === "rejected").length})
             </button>
           </div>
         </div>
@@ -523,7 +737,7 @@ export default function AdminCrewManagementPage() {
                   {filteredContracts.map((contract) => (
                     <tr
                       key={contract.id}
-                      onClick={() => setSelectedContract(contract)}
+                      onClick={() => handleContractClick(contract)}
                       className={`hover:bg-[#fdf2f2] dark:hover:bg-primary/5 cursor-pointer transition-colors ${
                         selectedContract?.id === contract.id
                           ? "bg-[#fdf2f2]/50 dark:bg-primary/5 border-l-4 border-l-primary"
@@ -560,8 +774,8 @@ export default function AdminCrewManagementPage() {
                           <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full ${
-                                contract.status === "renewal-due"
-                                  ? "bg-orange-500"
+                                contract.status === "approved"
+                                  ? "bg-green-500"
                                   : "bg-primary"
                               }`}
                               style={{ width: `${contract.progress}%` }}
@@ -569,13 +783,13 @@ export default function AdminCrewManagementPage() {
                           </div>
                           <span
                             className={`text-xs ${
-                              contract.status === "renewal-due"
-                                ? "text-orange-600 font-medium"
+                              contract.status === "rejected"
+                                ? "text-red-600 font-medium"
                                 : "text-gray-400"
                             }`}
                           >
-                            {contract.status === "renewal-due"
-                              ? "Expiring Soon"
+                            {contract.status === "rejected"
+                              ? "Rejected"
                               : `Ends ${contract.endDate}`}
                           </span>
                         </div>
@@ -603,7 +817,7 @@ export default function AdminCrewManagementPage() {
             </div>
             <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
               <span className="text-xs text-gray-500">
-                Showing 1-{filteredContracts.length} of {contracts.length}{" "}
+                Showing 1-{filteredContracts.length} of {crewManagementRequests.length}{" "}
                 contracts
               </span>
               <div className="flex gap-2">
@@ -627,6 +841,15 @@ export default function AdminCrewManagementPage() {
           {/* Right Panel: Contract Details */}
           {selectedContract && (
             <div className="w-full xl:w-[480px] bg-white dark:bg-[#1a202c] rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg flex flex-col overflow-hidden">
+              {/* Loading indicator for detail fetch */}
+              {detailLoading && (
+                <div className="absolute inset-0 bg-white/90 dark:bg-[#1a202c]/90 flex items-center justify-center z-10 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Loading contract details...</span>
+                  </div>
+                </div>
+              )}
               {/* Header */}
               <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
                 <div className="flex justify-between items-start mb-4">
@@ -790,24 +1013,130 @@ export default function AdminCrewManagementPage() {
               </div>
 
               {/* Footer Actions */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleDemobilize}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Demobilize Crew
-                </button>
-                <button
-                  onClick={handleReassign}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-bold shadow-md transition-colors"
-                >
-                  Reassign Crew
-                </button>
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={handleDemobilize}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Demobilize Crew
+                  </button>
+                  <button
+                    onClick={handleReassign}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-bold shadow-md transition-colors"
+                  >
+                    Reassign Crew
+                  </button>
+                </div>
+                {/* Approve/Reject buttons for contracts */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleApprove()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-md transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold shadow-md transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">cancel</span>
+                    Reject
+                  </button>
+                </div>
+                <div className="mt-2 text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Current Status: {selectedContractDetails?.status || 'Loading'}
+                  </p>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1a202c] rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {modalType === 'approve' ? 'Approve Request' : 'Reject Request'}
+                </h3>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                >
+                  <span className="material-symbols-outlined text-gray-400">close</span>
+                </button>
+              </div>
+
+              {modalType === 'approve' ? (
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Are you sure you want to approve this crew management request?
+                  </p>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900 dark:text-white">{selectedContract?.vesselName}</div>
+                      <div className="text-gray-500 dark:text-gray-400">
+                        Reference: {selectedContract?.refId}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    Please provide rejection notes (required):
+                  </p>
+                  <textarea
+                    value={rejectionNotes}
+                    onChange={(e) => setRejectionNotes(e.target.value)}
+                    placeholder="Enter rejection reason..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    rows={4}
+                    required
+                  />
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    Note: Rejection requires detailed notes
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-6 pt-0">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={isSubmitting || (modalType === 'reject' && !rejectionNotes.trim())}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  modalType === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50'
+                    : 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-50'
+                }`}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Processing...
+                  </div>
+                ) : (
+                  modalType === 'approve' ? 'Approve' : 'Reject'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

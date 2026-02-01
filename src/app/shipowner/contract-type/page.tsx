@@ -10,9 +10,9 @@ export default function ContractTypePage() {
   const handleSelect = (type: string) => {
     setSelected(type);
     if (type === "oneoff") {
-      router.push("/shipowner/contract-type/one-off");
+      router.push("/shipowner/fleet-details?type=oneoff");
     } else if (type === "full") {
-      router.push("/shipowner/contract-type/full");
+      router.push("/shipowner/fleet-details?type=full");
     }
   };
 
@@ -54,7 +54,7 @@ export default function ContractTypePage() {
           <div className="flex flex-col gap-3">
             <div className="flex gap-6 justify-between items-end">
               <p className="text-text-main dark:text-white text-base font-medium leading-normal">
-                Step 2 of 3: Service Selection
+                Step 2 of 4: Service Selection
               </p>
               <span className="text-text-secondary text-sm">
                 Next: Fleet Details
@@ -63,7 +63,7 @@ export default function ContractTypePage() {
             <div className="h-2 w-full rounded-full bg-[#d1d8e6] dark:bg-slate-700 overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary"
-                style={{ width: "66%" }}
+                style={{ width: "50%" }}
               ></div>
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function ContractTypePage() {
       </main>
       {/* Footer */}
       <footer className="mt-auto py-8 px-10 text-center text-sm text-text-secondary">
-        <p>© 2024 CrewManage. All maritime rights reserved.</p>
+        <p>© {new Date().getFullYear()} CrewManage. All maritime rights reserved.</p>
         <div className="mt-2 flex justify-center gap-4">
           <a className="hover:text-primary" href="#">
             Privacy Policy

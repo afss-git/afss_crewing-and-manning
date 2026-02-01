@@ -20,8 +20,8 @@ export default function ShipOwnerRegisterPage() {
     // Simulate registration API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Redirect to verification page after registration
-    router.push("/verify/email");
+    // Redirect to verification page after registration with email parameter
+    router.push(`/verify/email?email=${encodeURIComponent(formData.email)}`);
   };
 
   return (
@@ -208,7 +208,7 @@ export default function ShipOwnerRegisterPage() {
           {/* Copyright */}
           <div className="text-center md:text-left pt-6">
             <p className="text-xs text-[#9aa2b1]">
-              © 2024 Maritime Ops Platform. All rights reserved.
+              © {new Date().getFullYear()} Maritime Ops Platform. All rights reserved.
             </p>
           </div>
         </div>

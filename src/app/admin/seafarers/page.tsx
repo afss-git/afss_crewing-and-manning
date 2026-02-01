@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AdminProfile from "../../../components/AdminProfile";
 
 interface Document {
+  id?: number;
   name: string;
   status: "approved" | "pending" | "incomplete";
   exp?: string;
   uploaded?: string;
+  adminNotes?: string;
+  isEditingNotes?: boolean;
 }
 
 interface Applicant {
+  user_id: number;
   name: string;
   role: string;
   country: string;
@@ -34,102 +39,103 @@ export default function AdminSeafarersPage() {
   const [interviewDate, setInterviewDate] = useState("");
   const [interviewTime, setInterviewTime] = useState("");
   const [interviewer, setInterviewer] = useState(
-    "Capt. John Smith (Superintendent)"
+    "Capt. John Smith (Superintendent)",
   );
   const [meetingLink, setMeetingLink] = useState("");
+  const [editingNotes, setEditingNotes] = useState<{ [key: string]: boolean }>({});
+  const [notesContent, setNotesContent] = useState<{ [key: string]: string | undefined }>({});
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const applicants: Applicant[] = [
-    {
-      name: "Alexios Papadopoulos",
-      role: "Chief Engineer",
-      country: "Greece",
-      flag: "Greece",
-      applied: "2 days ago",
-      avatar:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCXcWA7iOmoIBN-4UfLJdNYpc7ic8w_NY-8K98kOJZsEuMny-DHU-152v-qjnaxnJPwLEQ2onXkcbxiJeilFBR8-kw5GgbPUjIHrxsHJU1LmcAIvRzWkAqD2BU_xl_mhfIF3f3H0X9on_UxzViG6oOVph0e1AaCm2iMuPsszfVq_sy4i79KQf14x5Bkn3AfJ_Z6AsnflJJ6UNJPzCFQ7qBFmqUuaTn658I-me2-ZyLN4pgngNAKoFw6-uKr68nYpu93tD5PjKWTHGnW",
-      status: "Docs Review",
-      statusType: "warning",
-      experience: "12 Years Experience",
-      email: "alexios.p@email.com",
-      phone: "+30 69 1234 5678",
-      progress: 60,
-      documents: [
-        { name: "Passport", status: "approved", exp: "12 Oct 2028" },
-        { name: "Seaman's Book", status: "pending", uploaded: "yesterday" },
-        {
-          name: "Medical Certificate",
-          status: "pending",
-          uploaded: "2 days ago",
-        },
-      ],
-    },
-    {
-      name: "Sarah Jenkins",
-      role: "2nd Officer",
-      country: "UK",
-      flag: "UK",
-      applied: "3 days ago",
-      avatar:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuAhP9E4338osd5dcuAJXfK3eA60PUs0lZX9CotZDRRYPNW21b0v9317wHmMykHrrJyf_3E0USNCmxA91zAZyrLMsXjop-VXGn-Phs_x1MPKuQdChWseTx250STNbp_ugVFdORMeGnn1I3FNfu3iNeCOYFul011Mly2FWEwSlj4AXMdH40jf_dW1J9NUEeQygBeENeiWtuEw4EpAYTrwhgnZdcF__Ip8aONe5AvaZxSV2nlWivw1RYgzZ3-2OGld21qpZlPFKflJCx8r",
-      status: "Incomplete",
-      statusType: "neutral",
-      experience: "6 Years Experience",
-      email: "sarah.j@email.com",
-      phone: "+44 20 1234 5678",
-      progress: 40,
-      documents: [
-        { name: "Passport", status: "approved", exp: "10 Jan 2029" },
-        { name: "Seaman's Book", status: "incomplete", uploaded: "yesterday" },
-      ],
-    },
-    {
-      name: "Miguel Santos",
-      role: "Cook",
-      country: "Philippines",
-      flag: "Philippines",
-      applied: "5 days ago",
-      avatar:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBssASONYTuYKclKZIok4KBusAsP0rCvcVlTqxi8kOLFrWlnoTix7HAo9v4JH0p_CB-vV0Gi2l1xfdDbG39UZWXLxWPM4eHo0YCPbt_ImG2uNZAhaqsmx_FAXC43k8rcIrUdlTZO4JtCrH5mUIaFRCV1RzeZGe6yhNtTtl-SYf0Cb9RbJqfK7qMVts4EIaQ42PVUdeaB41mot8-RoXjsIIQ5KIj9hVgh0vADOihvTru65lcrkTo3auHlYjA14DWSzxZdjsum-uc85VN",
-      status: "Interview Ready",
-      statusType: "success",
-      experience: "8 Years Experience",
-      email: "miguel.s@email.com",
-      phone: "+63 91 1234 5678",
-      progress: 80,
-      documents: [
-        { name: "Passport", status: "approved", exp: "15 Mar 2027" },
-        { name: "Seaman's Book", status: "approved", uploaded: "1 week ago" },
-        {
-          name: "Medical Certificate",
-          status: "approved",
-          uploaded: "1 week ago",
-        },
-      ],
-    },
-    {
-      name: "Ivan Petrov",
-      role: "Electrician",
-      country: "Ukraine",
-      flag: "Ukraine",
-      applied: "1 week ago",
-      avatar:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCbP7H7tnS1HHsJ29ySTdtOLHapm0Qty6vI0irpEqWaS_xXTTDFgQQ8P5VX34MUMsxA1tOGHBJXbLqEq6O57wYwi5swjfi2YGrSpepL806D2N8FoC6x2P_cDXdA9CmzEShGZ1mtJsa2osKgmiqt0ypRP31IAZZYzUfrKsBoIAh5YsJyvoeEjSltE2F8mDa0Cd5Z8eDad_uISvNOVm5St3r_VyJentrAam33D-qlQYnNhvyPtiDZc89LWW4UJl4XFZzEIwcfwIrQsZmz",
-      status: "Incomplete",
-      statusType: "neutral",
-      experience: "5 Years Experience",
-      email: "ivan.p@email.com",
-      phone: "+380 50 123 4567",
-      progress: 30,
-      documents: [
-        { name: "Passport", status: "approved", exp: "20 Aug 2026" },
-        { name: "Seaman's Book", status: "incomplete" },
-      ],
-    },
-  ];
+  // Fetch real seafarer data from API
+  useEffect(() => {
+    const fetchSeafarers = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("crew-manning-token");
 
-  const applicant = applicants[selectedApplicant];
+        const response = await fetch("/api/v1/admin/seafarers", {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch seafarers: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Transform API data to match our Applicant interface
+        const transformedApplicants: Applicant[] = (data.seafarers || data).map((seafarer: Record<string, unknown>) => ({
+          user_id: seafarer.id || seafarer.user_id,
+          name: seafarer.first_name && seafarer.last_name
+            ? `${seafarer.first_name} ${seafarer.last_name}`
+            : seafarer.name || "Unknown",
+          role: seafarer.rank || seafarer.role || "Seafarer",
+          country: seafarer.nationality || seafarer.country || "Unknown",
+          flag: seafarer.nationality || seafarer.country || "Unknown",
+          applied: seafarer.created_at && typeof seafarer.created_at === 'string'
+            ? new Date(seafarer.created_at).toLocaleDateString()
+            : seafarer.applied || "Recently",
+          avatar: seafarer.profile_photo_url ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(seafarer.first_name + ' ' + seafarer.last_name)}&background=701012&color=fff`,
+          status: seafarer.status || "Under Review",
+          statusType: seafarer.status === "approved" ? "success" :
+                     seafarer.status === "pending" ? "warning" : "neutral",
+          experience: seafarer.experience || `${seafarer.sea_service_years || 0} Years Experience`,
+          email: seafarer.email || "",
+          phone: seafarer.phone || "",
+          progress: seafarer.application_progress || 50,
+          documents: seafarer.documents || [],
+        }));
+
+        setApplicants(transformedApplicants);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching seafarers:", err);
+        setError(err instanceof Error ? err.message : "Failed to load seafarers");
+
+        // No fallback mock data - only show error state
+        setApplicants([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSeafarers();
+  }, []);
+
+
+
+  // Calculate dynamic counts from real API data
+  const newApplicantsCount = applicants.filter(a =>
+    a.statusType === "warning" || a.statusType === "neutral"
+  ).length;
+  const verifiedSeafarersCount = applicants.filter(a =>
+    a.statusType === "success"
+  ).length;
+
+  // Safety check: ensure we have applicants and valid selectedApplicant
+  const applicant = applicants[selectedApplicant] || applicants[0] || {
+    user_id: 0,
+    name: "Loading...",
+    role: "Seafarer",
+    country: "Unknown",
+    flag: "Unknown",
+    applied: "Recently",
+    avatar: "https://ui-avatars.com/api/?name=Loading&background=701012&color=fff",
+    status: "Loading",
+    statusType: "neutral" as const,
+    experience: "Loading...",
+    email: "",
+    phone: "",
+    progress: 0,
+    documents: [],
+  };
   const pendingDocs = applicant.documents.filter(
-    (d) => d.status === "pending"
+    (d) => d.status === "pending",
   ).length;
 
   const handleLogout = () => {
@@ -191,18 +197,113 @@ export default function AdminSeafarersPage() {
       return;
     }
     alert(
-      `Interview invitation sent to ${applicant.name} for ${interviewDate} at ${interviewTime}`
+      `Interview invitation sent to ${applicant.name} for ${interviewDate} at ${interviewTime}`,
     );
   };
 
-  const handleVerifyApplicant = () => {
-    alert(`${applicant.name} has been verified!`);
+  const handleVerifyApplicant = async () => {
+    const token = localStorage.getItem("crew-manning-token");
+    try {
+      const res = await fetch(`/api/v1/admin/users/${applicant.user_id}/approve`, {
+        method: "POST",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      if (res.ok) {
+        alert(`${applicant.name} has been approved successfully!`);
+        // You could refresh the data here or redirect to update the UI
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(`Failed to approve applicant: ${data?.detail || res.statusText}`);
+      }
+    } catch (err) {
+      console.error("approve applicant error", err);
+      alert("Network error approving applicant.");
+    }
   };
 
   const handleRejectApplicant = () => {
     if (confirm(`Are you sure you want to reject ${applicant.name}?`)) {
       alert(`${applicant.name} has been rejected.`);
     }
+  };
+
+  const toggleNotesEditing = (docIndex: number) => {
+    const doc = applicant.documents[docIndex];
+    const docKey = `${applicant.user_id}-${docIndex}`;
+
+    setEditingNotes(prev => ({
+      ...prev,
+      [docKey]: !prev[docKey]
+    }));
+
+    // Initialize notes content if not set
+    if (!notesContent[docKey] && doc.adminNotes) {
+      setNotesContent(prev => ({
+        ...prev,
+        [docKey]: doc.adminNotes || ''
+      }));
+    }
+  };
+
+  const updateNotesContent = (docIndex: number, content: string) => {
+    const docKey = `${applicant.user_id}-${docIndex}`;
+    setNotesContent(prev => ({
+      ...prev,
+      [docKey]: content
+    }));
+  };
+
+  const saveNotes = async (docIndex: number) => {
+    const doc = applicant.documents[docIndex];
+    const docKey = `${applicant.user_id}-${docIndex}`;
+    const notes = notesContent[docKey] || '';
+
+    // For demo purposes, we'll assume the document has an ID
+    // In real implementation, this would come from the API
+    const docId = doc.id || (docIndex + 1); // Fallback for demo
+
+    const token = localStorage.getItem("crew-manning-token");
+    try {
+      const res = await fetch(`/api/v1/admin/documents/${docId}/notes`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (res.ok) {
+        alert(`Notes saved for ${doc.name}`);
+        // Close the editor
+        setEditingNotes(prev => ({
+          ...prev,
+          [docKey]: false
+        }));
+        // In a real app, you'd update the document state here
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(`Failed to save notes: ${data?.detail || res.statusText}`);
+      }
+    } catch (err) {
+      console.error("save notes error", err);
+      alert("Network error saving notes.");
+    }
+  };
+
+  const cancelNotes = (docIndex: number) => {
+    const docKey = `${applicant.user_id}-${docIndex}`;
+    setEditingNotes(prev => ({
+      ...prev,
+      [docKey]: false
+    }));
+    // Reset notes content
+    setNotesContent(prev => ({
+      ...prev,
+      [docKey]: undefined
+    }));
   };
 
   return (
@@ -303,6 +404,7 @@ export default function AdminSeafarersPage() {
             <span className="text-sm font-medium">Log Out</span>
           </button>
         </div>
+        <AdminProfile />
       </aside>
 
       {/* Main Content */}
@@ -382,7 +484,7 @@ export default function AdminSeafarersPage() {
                         : "bg-[#e8ebf3] text-[#506795]"
                     } text-[10px] px-1.5 py-0.5 rounded-full font-bold`}
                   >
-                    12
+                    {newApplicantsCount}
                   </span>
                 </button>
                 <button
@@ -401,7 +503,7 @@ export default function AdminSeafarersPage() {
                         : "bg-[#e8ebf3] text-[#506795]"
                     } text-[10px] px-1.5 py-0.5 rounded-full font-bold`}
                   >
-                    842
+                    {verifiedSeafarersCount}
                   </span>
                 </button>
               </div>
@@ -625,16 +727,16 @@ export default function AdminSeafarersPage() {
                             doc.status === "approved"
                               ? "bg-green-50 text-green-600"
                               : doc.status === "pending"
-                              ? "bg-yellow-50 text-yellow-600"
-                              : "bg-gray-100 text-gray-400"
+                                ? "bg-yellow-50 text-yellow-600"
+                                : "bg-gray-100 text-gray-400"
                           }`}
                         >
                           <span className="material-symbols-outlined">
                             {doc.status === "approved"
                               ? "check_circle"
                               : doc.status === "pending"
-                              ? "hourglass_top"
-                              : "description"}
+                                ? "hourglass_top"
+                                : "description"}
                           </span>
                         </div>
                         <div>
@@ -645,12 +747,31 @@ export default function AdminSeafarersPage() {
                             {doc.exp
                               ? `Exp: ${doc.exp}`
                               : doc.uploaded
-                              ? `Uploaded ${doc.uploaded}`
-                              : "Not uploaded"}
+                                ? `Uploaded ${doc.uploaded}`
+                                : "Not uploaded"}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleNotesEditing(idx)}
+                          className={`p-2 rounded transition-colors ${
+                            editingNotes[`${applicant.user_id}-${idx}`]
+                              ? "bg-primary/10 text-primary"
+                              : "text-[#506795] hover:text-primary hover:bg-[#f0f4fc]"
+                          }`}
+                          title={
+                            editingNotes[`${applicant.user_id}-${idx}`]
+                              ? "Hide Notes"
+                              : "Add Notes"
+                          }
+                        >
+                          <span className="material-symbols-outlined text-[20px]">
+                            {editingNotes[`${applicant.user_id}-${idx}`]
+                              ? "expand_less"
+                              : "expand_more"}
+                          </span>
+                        </button>
                         <button
                           className="text-[#506795] hover:text-primary p-2 rounded hover:bg-[#f0f4fc]"
                           title="View"
@@ -683,6 +804,33 @@ export default function AdminSeafarersPage() {
                           </>
                         )}
                       </div>
+
+                      {/* Expandable Notes Section */}
+                      {editingNotes[`${applicant.user_id}-${idx}`] && (
+                        <div className="mt-3 p-3 bg-[#f8f9fb] dark:bg-[#1a202c] rounded-lg border border-[#e8ebf3]">
+                          <textarea
+                            placeholder="Enter admin notes for this document..."
+                            value={notesContent[`${applicant.user_id}-${idx}`] || ""}
+                            onChange={(e) => updateNotesContent(idx, e.target.value)}
+                            rows={3}
+                            className="w-full bg-white dark:bg-[#0e121b] border border-[#d0d5dd] rounded-lg text-sm px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary resize-none"
+                          />
+                          <div className="flex justify-end gap-2 mt-2">
+                            <button
+                              onClick={() => cancelNotes(idx)}
+                              className="px-3 py-1.5 text-[#506795] hover:bg-[#e8ebf3] rounded text-sm font-medium transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => saveNotes(idx)}
+                              className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-white rounded text-sm font-medium transition-colors"
+                            >
+                              💾 Save Notes
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

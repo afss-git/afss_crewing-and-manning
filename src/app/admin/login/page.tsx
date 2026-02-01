@@ -19,13 +19,13 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      // Use the correct local admin API endpoint
+      const response = await fetch(`/api/v1/admin/login/admin?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
@@ -38,26 +38,11 @@ export default function AdminLoginPage() {
 
       const { access_token } = data;
 
-      // Decode JWT to get user role
-      const decoded = decodeJWT(access_token);
-      if (!decoded) {
-        setError("Invalid authentication token");
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if the user is an admin
-      if (decoded.role !== "admin") {
-        setError("Access denied. Admin credentials required.");
-        setIsLoading(false);
-        return;
-      }
-
       // Store auth data
       const adminUser = {
-        id: decoded.sub,
+        id: email,
         name: email.split("@")[0],
-        email: decoded.sub,
+        email: email,
         role: "admin",
         accessToken: access_token,
       };
@@ -74,25 +59,6 @@ export default function AdminLoginPage() {
       setIsLoading(false);
     }
   };
-
-  // Helper function to decode JWT
-  function decodeJWT(
-    token: string
-  ): { sub: string; role: string; exp: number } | null {
-    try {
-      const base64Url = token.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
-      return JSON.parse(jsonPayload);
-    } catch {
-      return null;
-    }
-  }
 
   return (
     <div className="font-display bg-background-light dark:bg-background-dark text-text-main dark:text-white overflow-hidden">
@@ -269,7 +235,7 @@ export default function AdminLoginPage() {
             <div className="mt-12 pt-6 border-t border-gray-100 dark:border-gray-800">
               <div className="flex flex-col gap-4 text-center sm:text-left">
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  © 2024 MaritimeOps Stevedoring. All rights reserved.
+                  © {new Date().getFullYear()} MaritimeOps Stevedoring. All rights reserved.
                 </p>
                 <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-500 justify-center sm:justify-start">
                   <a className="hover:text-primary transition-colors" href="#">

@@ -4,6 +4,8 @@ import Link from "next/link";
 import React from "react";
 import Image from "next/image";
 import Sidebar from "../components/Sidebar";
+import ShipOwnerProfile from "../../../components/ShipOwnerProfile";
+import ShipOwnerDocuments from "../../../components/ShipOwnerDocuments";
 
 export default function ShipownerDashboard() {
   return (
@@ -73,6 +75,9 @@ export default function ShipownerDashboard() {
               </div>
             </div>
 
+            {/* Company Profile */}
+            <ShipOwnerProfile compact={true} />
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white dark:bg-[#1A2235] p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
@@ -132,6 +137,9 @@ export default function ShipownerDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Company Documents */}
+            <ShipOwnerDocuments compact={true} maxItems={3} />
 
             {/* Filter Bar */}
             <div className="bg-white dark:bg-[#1A2235] p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">

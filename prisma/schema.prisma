@@ -24,6 +24,7 @@ model User {
   lastName   String?
   approved   Boolean    @default(false)
   documents  Document[]
+  shipOwner  ShipOwner?
 }
 
 model Document {
@@ -41,4 +42,29 @@ model Setting {
   id    Int    @id @default(autoincrement())
   key   String @unique
   value String
+}
+
+model ShipOwner {
+  id                  Int      @id @default(autoincrement())
+  userId              Int      @unique
+  user                User     @relation(fields: [userId], references: [id])
+  companyName         String
+  imoNumber           String?
+  website             String?
+  hqAddress           String
+  vesselTypes         String
+  fleetSize           String
+  primaryTradingArea  String
+  contactFullName     String
+  contactRole         String
+  contactEmail        String
+  contactPhone        String
+  document1           String?
+  document2           String?
+  document3           String?
+  document4           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("ship_owners")
 }
