@@ -42,17 +42,18 @@ export default function AdminSeafarersPage() {
     "Capt. John Smith (Superintendent)",
   );
   const [meetingLink, setMeetingLink] = useState("");
-  const [editingNotes, setEditingNotes] = useState<{ [key: string]: boolean }>({});
-  const [notesContent, setNotesContent] = useState<{ [key: string]: string | undefined }>({});
+  const [editingNotes, setEditingNotes] = useState<{ [key: string]: boolean }>(
+    {},
+  );
+  const [notesContent, setNotesContent] = useState<{
+    [key: string]: string | undefined;
+  }>({});
   const [applicants, setApplicants] = useState<Applicant[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Fetch real seafarer data from API
   useEffect(() => {
     const fetchSeafarers = async () => {
       try {
-        setIsLoading(true);
         const token = localStorage.getItem("crew-manning-token");
 
         const response = await fetch("/api/v1/admin/seafarers", {
@@ -68,72 +69,79 @@ export default function AdminSeafarersPage() {
         const data = await response.json();
 
         // Transform API data to match our Applicant interface
-        const transformedApplicants: Applicant[] = (data.seafarers || data).map((seafarer: Record<string, unknown>) => ({
-          user_id: seafarer.id || seafarer.user_id,
-          name: seafarer.first_name && seafarer.last_name
-            ? `${seafarer.first_name} ${seafarer.last_name}`
-            : seafarer.name || "Unknown",
-          role: seafarer.rank || seafarer.role || "Seafarer",
-          country: seafarer.nationality || seafarer.country || "Unknown",
-          flag: seafarer.nationality || seafarer.country || "Unknown",
-          applied: seafarer.created_at && typeof seafarer.created_at === 'string'
-            ? new Date(seafarer.created_at).toLocaleDateString()
-            : seafarer.applied || "Recently",
-          avatar: seafarer.profile_photo_url ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(seafarer.first_name + ' ' + seafarer.last_name)}&background=701012&color=fff`,
-          status: seafarer.status || "Under Review",
-          statusType: seafarer.status === "approved" ? "success" :
-                     seafarer.status === "pending" ? "warning" : "neutral",
-          experience: seafarer.experience || `${seafarer.sea_service_years || 0} Years Experience`,
-          email: seafarer.email || "",
-          phone: seafarer.phone || "",
-          progress: seafarer.application_progress || 50,
-          documents: seafarer.documents || [],
-        }));
+        const transformedApplicants: Applicant[] = (data.seafarers || data).map(
+          (seafarer: Record<string, unknown>) => ({
+            user_id: seafarer.id || seafarer.user_id,
+            name:
+              seafarer.first_name && seafarer.last_name
+                ? `${seafarer.first_name} ${seafarer.last_name}`
+                : seafarer.name || "Unknown",
+            role: seafarer.rank || seafarer.role || "Seafarer",
+            country: seafarer.nationality || seafarer.country || "Unknown",
+            flag: seafarer.nationality || seafarer.country || "Unknown",
+            applied:
+              seafarer.created_at && typeof seafarer.created_at === "string"
+                ? new Date(seafarer.created_at).toLocaleDateString()
+                : seafarer.applied || "Recently",
+            avatar:
+              seafarer.profile_photo_url ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(seafarer.first_name + " " + seafarer.last_name)}&background=701012&color=fff`,
+            status: seafarer.status || "Under Review",
+            statusType:
+              seafarer.status === "approved"
+                ? "success"
+                : seafarer.status === "pending"
+                  ? "warning"
+                  : "neutral",
+            experience:
+              seafarer.experience ||
+              `${seafarer.sea_service_years || 0} Years Experience`,
+            email: seafarer.email || "",
+            phone: seafarer.phone || "",
+            progress: seafarer.application_progress || 50,
+            documents: seafarer.documents || [],
+          }),
+        );
 
         setApplicants(transformedApplicants);
-        setError(null);
       } catch (err) {
         console.error("Error fetching seafarers:", err);
-        setError(err instanceof Error ? err.message : "Failed to load seafarers");
 
         // No fallback mock data - only show error state
         setApplicants([]);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     fetchSeafarers();
   }, []);
 
-
-
   // Calculate dynamic counts from real API data
-  const newApplicantsCount = applicants.filter(a =>
-    a.statusType === "warning" || a.statusType === "neutral"
+  const newApplicantsCount = applicants.filter(
+    (a) => a.statusType === "warning" || a.statusType === "neutral",
   ).length;
-  const verifiedSeafarersCount = applicants.filter(a =>
-    a.statusType === "success"
+  const verifiedSeafarersCount = applicants.filter(
+    (a) => a.statusType === "success",
   ).length;
 
   // Safety check: ensure we have applicants and valid selectedApplicant
-  const applicant = applicants[selectedApplicant] || applicants[0] || {
-    user_id: 0,
-    name: "Loading...",
-    role: "Seafarer",
-    country: "Unknown",
-    flag: "Unknown",
-    applied: "Recently",
-    avatar: "https://ui-avatars.com/api/?name=Loading&background=701012&color=fff",
-    status: "Loading",
-    statusType: "neutral" as const,
-    experience: "Loading...",
-    email: "",
-    phone: "",
-    progress: 0,
-    documents: [],
-  };
+  const applicant = applicants[selectedApplicant] ||
+    applicants[0] || {
+      user_id: 0,
+      name: "Loading...",
+      role: "Seafarer",
+      country: "Unknown",
+      flag: "Unknown",
+      applied: "Recently",
+      avatar:
+        "https://ui-avatars.com/api/?name=Loading&background=701012&color=fff",
+      status: "Loading",
+      statusType: "neutral" as const,
+      experience: "Loading...",
+      email: "",
+      phone: "",
+      progress: 0,
+      documents: [],
+    };
   const pendingDocs = applicant.documents.filter(
     (d) => d.status === "pending",
   ).length;
@@ -204,12 +212,15 @@ export default function AdminSeafarersPage() {
   const handleVerifyApplicant = async () => {
     const token = localStorage.getItem("crew-manning-token");
     try {
-      const res = await fetch(`/api/v1/admin/users/${applicant.user_id}/approve`, {
-        method: "POST",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
+      const res = await fetch(
+        `/api/v1/admin/users/${applicant.user_id}/approve`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
         },
-      });
+      );
       if (res.ok) {
         alert(`${applicant.name} has been approved successfully!`);
         // You could refresh the data here or redirect to update the UI
@@ -233,36 +244,36 @@ export default function AdminSeafarersPage() {
     const doc = applicant.documents[docIndex];
     const docKey = `${applicant.user_id}-${docIndex}`;
 
-    setEditingNotes(prev => ({
+    setEditingNotes((prev) => ({
       ...prev,
-      [docKey]: !prev[docKey]
+      [docKey]: !prev[docKey],
     }));
 
     // Initialize notes content if not set
     if (!notesContent[docKey] && doc.adminNotes) {
-      setNotesContent(prev => ({
+      setNotesContent((prev) => ({
         ...prev,
-        [docKey]: doc.adminNotes || ''
+        [docKey]: doc.adminNotes || "",
       }));
     }
   };
 
   const updateNotesContent = (docIndex: number, content: string) => {
     const docKey = `${applicant.user_id}-${docIndex}`;
-    setNotesContent(prev => ({
+    setNotesContent((prev) => ({
       ...prev,
-      [docKey]: content
+      [docKey]: content,
     }));
   };
 
   const saveNotes = async (docIndex: number) => {
     const doc = applicant.documents[docIndex];
     const docKey = `${applicant.user_id}-${docIndex}`;
-    const notes = notesContent[docKey] || '';
+    const notes = notesContent[docKey] || "";
 
     // For demo purposes, we'll assume the document has an ID
     // In real implementation, this would come from the API
-    const docId = doc.id || (docIndex + 1); // Fallback for demo
+    const docId = doc.id || docIndex + 1; // Fallback for demo
 
     const token = localStorage.getItem("crew-manning-token");
     try {
@@ -278,9 +289,9 @@ export default function AdminSeafarersPage() {
       if (res.ok) {
         alert(`Notes saved for ${doc.name}`);
         // Close the editor
-        setEditingNotes(prev => ({
+        setEditingNotes((prev) => ({
           ...prev,
-          [docKey]: false
+          [docKey]: false,
         }));
         // In a real app, you'd update the document state here
       } else {
@@ -295,14 +306,14 @@ export default function AdminSeafarersPage() {
 
   const cancelNotes = (docIndex: number) => {
     const docKey = `${applicant.user_id}-${docIndex}`;
-    setEditingNotes(prev => ({
+    setEditingNotes((prev) => ({
       ...prev,
-      [docKey]: false
+      [docKey]: false,
     }));
     // Reset notes content
-    setNotesContent(prev => ({
+    setNotesContent((prev) => ({
       ...prev,
-      [docKey]: undefined
+      [docKey]: undefined,
     }));
   };
 
@@ -431,7 +442,7 @@ export default function AdminSeafarersPage() {
             <div
               className="size-9 rounded-full bg-cover bg-center border border-[#e8ebf3]"
               style={{
-                backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuAdWh-Np1nDcZAXcqy2cWNK3gPJ8EtDTJNGVP9FXI0dZSkTlPDHdHbnhq1yeRIMGrMM6pAY2uUcphcCHw-QubRBZw6kQo9k_KLduulwHLZb3dFe81-ov5-iAmyA-q-yXqcYJ4IX1vPBLcI7x-7aUUz60PeWSFSxajUxq-3ah0Th4YgMhkCLt7wVCtVryjCwmnuHFj4gxQyss9HRApiE-UkA1s4uk8GWhho0SwDlQ0wF6VvMqTT64WjBo8SdPJ_T71GxM1Bap5HuMgjt')`,
+                backgroundImage: `url('https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36')`,
               }}
             ></div>
           </div>
@@ -810,8 +821,12 @@ export default function AdminSeafarersPage() {
                         <div className="mt-3 p-3 bg-[#f8f9fb] dark:bg-[#1a202c] rounded-lg border border-[#e8ebf3]">
                           <textarea
                             placeholder="Enter admin notes for this document..."
-                            value={notesContent[`${applicant.user_id}-${idx}`] || ""}
-                            onChange={(e) => updateNotesContent(idx, e.target.value)}
+                            value={
+                              notesContent[`${applicant.user_id}-${idx}`] || ""
+                            }
+                            onChange={(e) =>
+                              updateNotesContent(idx, e.target.value)
+                            }
                             rows={3}
                             className="w-full bg-white dark:bg-[#0e121b] border border-[#d0d5dd] rounded-lg text-sm px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary resize-none"
                           />

@@ -64,8 +64,44 @@ model ShipOwner {
   document2           String?
   document3           String?
   document4           String?
+  contracts           Contract[]
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@map("ship_owners")
+}
+
+model Contract {
+  id                   Int              @id @default(autoincrement())
+  shipOwnerId          Int
+  shipOwner            ShipOwner        @relation(fields: [shipOwnerId], references: [id])
+  contractId           String           @unique
+  vesselName           String
+  vesselImoNumber      String?
+  position             String
+  positionType         String  // "urgent" | "medical" | "scheduled" | "spot"
+  startDate            DateTime
+  endDate              DateTime
+  duration             String
+  requiredCertifications String
+  dayRate              String
+  status               String @default("open") // "open" | "reviewing" | "assigned" | "completed" | "cancelled"
+  clientName           String
+  clientCompany        String?
+  specificInstructions String?
+  positions            ContractPosition[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model ContractPosition {
+  id                   Int      @id @default(autoincrement())
+  contractId           Int
+  contract             Contract @relation(fields: [contractId], references: [id])
+  position             String
+  specifications       String?
+  assignedSeafarer     Int?
+  status               String @default("open") // "open" | "assigned" | "completed"
+  assignedAt           DateTime?
+  createdAt            DateTime @default(now())
 }

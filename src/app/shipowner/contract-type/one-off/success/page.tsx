@@ -80,8 +80,7 @@ export default function OneOffSuccessPage() {
             <div
               className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 bg-cover bg-center"
               style={{
-                backgroundImage:
-                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBNKCR1y2af8Dd4Jsz6y0ROyAcFljibHqZCYegjlJykI6Tm15YRmNQSeIksCr01Ta4eXkHmHLro7MSeAby7QdxiYhXvDVkHi_PpMHOEvHOQMtLp_F4oeEDWzd-V96YXdIkiivaQi668PVxCua4EWRkREjcVp53CqWMVDx7CkdsBwJ5XSKcejM_fEMxE7slsHHGxAGImCv0YJ-5mg1ITMIvHuVW79k9y5OPi91t51ZpO_A9ckHA4s5181naijohW99nUj6est8LYcMtX')",
+                backgroundImage: "url('/images/default-shipowner-avatar.jpg')",
               }}
             ></div>
             <div className="flex flex-col">

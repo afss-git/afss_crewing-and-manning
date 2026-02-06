@@ -3,24 +3,48 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+// Helper function to decode JWT and validate expiration
+function decodeJWT(
+  token: string,
+): { sub: string; role: string; exp: number } | null {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("JWT decode error:", error);
+    return null;
+  }
+}
+
 export default function SeafarerProfileCreationPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form state
+  // Form state - matching external API requirements
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    dob: "",
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    rank: "",
+    date_of_birth: "",
     gender: "",
     nationality: "",
-    phone: "",
     address: "",
-    state: "",
+    state_province: "",
     city: "",
-    rank: "",
-    experience: "",
+    years_of_experience: "",
   });
+
+  // Phone number state
+  const [countryCode, setCountryCode] = useState("+234");
+  const [localPhoneNumber, setLocalPhoneNumber] = useState("");
 
   // File upload state
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
@@ -33,10 +57,34 @@ export default function SeafarerProfileCreationPage() {
 
   // Handle input changes
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { id, value } = e.target;
     setForm((prev) => ({ ...prev, [id]: value }));
+    setError(null);
+  };
+
+  // Handle phone number changes
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalPhoneNumber(value);
+    // Update the full phone number in form state
+    setForm((prev) => ({
+      ...prev,
+      phone_number: countryCode + value.replace(/\D/g, ""),
+    }));
+    setError(null);
+  };
+
+  // Handle country code changes
+  const handleCountryCodeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCountryCode = e.target.value;
+    setCountryCode(newCountryCode);
+    // Update the full phone number in form state
+    setForm((prev) => ({
+      ...prev,
+      phone_number: newCountryCode + localPhoneNumber.replace(/\D/g, ""),
+    }));
     setError(null);
   };
 
@@ -69,19 +117,26 @@ export default function SeafarerProfileCreationPage() {
     e.preventDefault();
     setError(null);
 
-    // Validation
-    if (!form.firstName.trim()) {
+    // Validation - external API required fields
+    if (!form.first_name.trim()) {
       setError("First name is required");
       return;
     }
-    if (!form.lastName.trim()) {
+    if (!form.last_name.trim()) {
       setError("Last name is required");
       return;
     }
-    if (!form.phone.trim()) {
+    if (!form.phone_number.trim()) {
       setError("Phone number is required");
       return;
     }
+
+    // Validate local phone number has digits
+    if (!localPhoneNumber.replace(/\D/g, "")) {
+      setError("Please enter a valid phone number");
+      return;
+    }
+
     if (!form.rank) {
       setError("Rank/Position is required");
       return;
@@ -90,56 +145,86 @@ export default function SeafarerProfileCreationPage() {
     setIsLoading(true);
 
     try {
-      // Get token from localStorage
+      // Get token from localStorage and validate
       const token = localStorage.getItem("crew-manning-token");
       if (!token) {
         setError(
-          "You must be logged in to create a profile. Please log in again."
+          "You must be logged in to create a profile. Please log in again.",
         );
         setIsLoading(false);
         return;
       }
 
-      // Build FormData for multipart/form-data
+      // Validate token is not expired
+      const decodedToken = decodeJWT(token);
+      if (!decodedToken || decodedToken.exp * 1000 < Date.now()) {
+        setError("Your session has expired. Please log in again.");
+        localStorage.removeItem("crew-manning-token");
+        localStorage.removeItem("crew-manning-user");
+        localStorage.removeItem("crew-manning-profile");
+        setIsLoading(false);
+        // Redirect to login after a short delay
+        setTimeout(() => router.push("/login"), 2000);
+        return;
+      }
+
+      // Build FormData for multipart/form-data - external API format
       const formData = new FormData();
-      formData.append("first_name", form.firstName.trim());
-      formData.append("last_name", form.lastName.trim());
-      formData.append("phone_number", form.phone.trim());
+      formData.append("first_name", form.first_name.trim());
+      formData.append("last_name", form.last_name.trim());
+      formData.append("phone_number", form.phone_number.trim());
       formData.append("rank", form.rank);
 
       // Optional fields - only append if they have values
-      if (form.dob) {
-        formData.append("date_of_birth", form.dob);
+      if (form.date_of_birth) {
+        // Validate date is not in the future
+        const birthDate = new Date(form.date_of_birth);
+        const today = new Date();
+        if (birthDate > today) {
+          setError("Date of birth cannot be in the future");
+          setIsLoading(false);
+          return;
+        }
+        formData.append("date_of_birth", form.date_of_birth);
       }
       if (form.gender) {
         formData.append("gender", form.gender);
       }
       if (form.nationality) {
+        // Already in correct 2-letter ISO format
         formData.append("nationality", form.nationality);
       }
       if (form.address.trim()) {
         formData.append("address", form.address.trim());
       }
-      if (form.state.trim()) {
-        formData.append("state_province", form.state.trim());
+      if (form.state_province.trim()) {
+        formData.append("state_province", form.state_province.trim());
       }
       if (form.city.trim()) {
         formData.append("city", form.city.trim());
       }
-      if (form.experience) {
-        formData.append("years_of_experience", form.experience);
+      if (form.years_of_experience) {
+        formData.append("years_of_experience", form.years_of_experience);
       }
+
+      // Add profile photo if selected
       if (profilePhoto) {
         formData.append("profile_photo", profilePhoto);
       }
 
-      const response = await fetch("/api/seafarer/profile/create", {
+      const response = await fetch("/api/v1/seafarers/profile", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
         },
         body: formData,
+      });
+
+      console.log("🔄 Sending profile creation request to /api/v1/seafarers/profile");
+      console.log("📤 Request headers:", {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
       });
 
       const data = await response.json();
@@ -150,7 +235,7 @@ export default function SeafarerProfileCreationPage() {
           data.detail === "Profile already exists"
         ) {
           setError(
-            "A profile already exists for this account. Redirecting to dashboard..."
+            "A profile already exists for this account. Redirecting to dashboard...",
           );
           setTimeout(() => router.push("/seafarer/dashboard"), 2000);
           return;
@@ -162,15 +247,14 @@ export default function SeafarerProfileCreationPage() {
           setError(messages || "Validation error. Please check your input.");
         } else {
           setError(
-            data.detail || "Failed to create profile. Please try again."
+            data.detail || "Failed to create profile. Please try again.",
           );
         }
         setIsLoading(false);
         return;
       }
 
-      // Success - update local storage with profile data and show modal
-      localStorage.setItem("crew-manning-profile", JSON.stringify(data));
+      // Success - show modal (profile data will be fetched by AuthContext)
       setShowModal(true);
     } catch (err) {
       console.error("Profile creation error:", err);
@@ -193,8 +277,7 @@ export default function SeafarerProfileCreationPage() {
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{
-                      backgroundImage:
-                        "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB0yCzRULZdEZIUweUpVQK4r0fY5XGqP_ET31rviT8D74exMXOfPIPTq7ahM9JczWP0QKZtJ5UpPRyS9TSzkbsvdzicaSuzICETwyj9KPr0uLIgEWQte_q8qQYrJQ0GoGVoAX8LWq9Ty0-0BzdqxmXRw7xsnt9rIBQpbIa1EGWmPzLjAE8EJ8HiPjU6_MMrW69wKqqwiTfmGghGkQelCH388g5ZZ2J0DKXSObX8DGk6YwFKzccl3zx4IbCgv5n1u9r5yL9lOIj2EGMD')",
+                      backgroundImage: "url('/images/default-user-avatar.jpg')",
                     }}
                     data-alt="Ship captain viewing the ocean from the bridge"
                   ></div>
@@ -286,8 +369,7 @@ export default function SeafarerProfileCreationPage() {
               <div
                 className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-gray-200 dark:border-gray-700"
                 style={{
-                  backgroundImage:
-                    'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCSXSwAv4AoIQjqgrvTD725C7zGy88YuyMDPDMCqNc_VVfuhT6AmDhgHkvojh-Tpok1YHE8hDYhqFYmsVtMWQ8CQI-G31CPYpWncNZCpjpEWmSOag6DamBO0EX4a9TRoZPfGmmIQ7XNFTD36RoGeqkx2hfIkSHnz0RV5uTZPi0T-Fus5gjCy0k_rcNQoBvPCcKlI2fJWEx6vnF9nVZl6i-u9WtA5Jrtji9q8sCrNCjSbNPHpAy0aKRhC-JYUQC5wFl9dL0KaQNXvi31")',
+                  backgroundImage: 'url("/images/default-user-avatar.jpg")',
                 }}
               ></div>
             </div>
@@ -510,8 +592,8 @@ export default function SeafarerProfileCreationPage() {
                           First Name <span className="text-red-500">*</span>
                         </label>
                         <input
-                          id="firstName"
-                          value={form.firstName}
+                          id="first_name"
+                          value={form.first_name}
                           onChange={handleChange}
                           required
                           placeholder="e.g. Jonathan"
@@ -527,8 +609,8 @@ export default function SeafarerProfileCreationPage() {
                           Last Name <span className="text-red-500">*</span>
                         </label>
                         <input
-                          id="lastName"
-                          value={form.lastName}
+                          id="last_name"
+                          value={form.last_name}
                           onChange={handleChange}
                           required
                           placeholder="e.g. Doe"
@@ -544,8 +626,8 @@ export default function SeafarerProfileCreationPage() {
                           Date of Birth
                         </label>
                         <input
-                          id="dob"
-                          value={form.dob}
+                          id="date_of_birth"
+                          value={form.date_of_birth}
                           onChange={handleChange}
                           type="date"
                           className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5"
@@ -584,13 +666,13 @@ export default function SeafarerProfileCreationPage() {
                           className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5"
                         >
                           <option value="">Select nationality</option>
-                          <option value="philippines">Filipino</option>
-                          <option value="india">Indian</option>
-                          <option value="ukraine">Ukrainian</option>
-                          <option value="russia">Russian</option>
-                          <option value="china">Chinese</option>
-                          <option value="usa">American</option>
-                          <option value="uk">British</option>
+                          <option value="PH">Filipino</option>
+                          <option value="IN">Indian</option>
+                          <option value="UA">Ukrainian</option>
+                          <option value="RU">Russian</option>
+                          <option value="CN">Chinese</option>
+                          <option value="US">American</option>
+                          <option value="GB">British</option>
                         </select>
                       </div>
                       <div className="col-span-1">
@@ -601,20 +683,36 @@ export default function SeafarerProfileCreationPage() {
                           Phone Number <span className="text-red-500">*</span>
                         </label>
                         <div className="flex rounded-md shadow-sm">
-                          <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 text-gray-500 dark:text-gray-300 sm:text-sm">
-                            +
-                          </span>
+                          <select
+                            value={countryCode}
+                            onChange={handleCountryCodeChange}
+                            className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 text-gray-500 dark:text-gray-300 sm:text-sm py-2.5 focus:border-primary focus:ring-primary"
+                          >
+                            <option value="+234">🇳🇬 +234</option>
+                            <option value="+1">🇺🇸 +1</option>
+                            <option value="+44">🇬🇧 +44</option>
+                            <option value="+63">🇵🇭 +63</option>
+                            <option value="+91">🇮🇳 +91</option>
+                            <option value="+380">🇺🇦 +380</option>
+                            <option value="+7">🇷🇺 +7</option>
+                            <option value="+86">🇨🇳 +86</option>
+                            <option value="+33">🇫🇷 +33</option>
+                            <option value="+49">🇩🇪 +49</option>
+                          </select>
                           <input
-                            id="phone"
-                            value={form.phone}
-                            onChange={handleChange}
+                            value={localPhoneNumber}
+                            onChange={handlePhoneChange}
                             required
-                            name="phone"
-                            placeholder="1 (555) 987-6543"
+                            name="phone_number"
+                            placeholder="8119445459"
                             type="tel"
                             className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary focus:ring-primary sm:text-sm py-2.5"
                           />
                         </div>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Full number: {countryCode}
+                          {localPhoneNumber.replace(/\D/g, "")}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -647,14 +745,14 @@ export default function SeafarerProfileCreationPage() {
                       </div>
                       <div className="col-span-1">
                         <label
-                          htmlFor="state"
+                          htmlFor="state_province"
                           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                         >
                           State / Province
                         </label>
                         <input
-                          id="state"
-                          value={form.state}
+                          id="state_province"
+                          value={form.state_province}
                           onChange={handleChange}
                           placeholder="e.g. California"
                           type="text"
@@ -706,39 +804,34 @@ export default function SeafarerProfileCreationPage() {
                           className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5"
                         >
                           <option value="">Select Rank</option>
-                          <optgroup label="Deck Department">
-                            <option value="master">Master / Captain</option>
-                            <option value="chief_officer">Chief Officer</option>
-                            <option value="second_officer">2nd Officer</option>
-                            <option value="third_officer">3rd Officer</option>
-                            <option value="deck_cadet">Deck Cadet</option>
-                          </optgroup>
-                          <optgroup label="Engine Department">
-                            <option value="chief_engineer">
-                              Chief Engineer
-                            </option>
-                            <option value="second_engineer">
-                              2nd Engineer
-                            </option>
-                            <option value="oiler">Oiler</option>
-                            <option value="wiper">Wiper</option>
-                          </optgroup>
+                          <option value="captain">Captain</option>
+                          <option value="chief_officer">Chief Officer</option>
+                          <option value="second_officer">Second Officer</option>
+                          <option value="third_officer">Third Officer</option>
+                          <option value="chief_engineer">Chief Engineer</option>
+                          <option value="second_engineer">Second Engineer</option>
+                          <option value="electrician">Electrician</option>
+                          <option value="bosun">Bosun</option>
+                          <option value="able_seaman">Able Seaman</option>
+                          <option value="ordinary_seaman">Ordinary Seaman</option>
+                          <option value="cook">Cook</option>
+                          <option value="other">Other</option>
                         </select>
                       </div>
                       <div className="col-span-1">
                         <label
-                          htmlFor="experience"
+                          htmlFor="years_of_experience"
                           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                         >
                           Years of Experience
                         </label>
                         <input
-                          id="experience"
-                          value={form.experience}
+                          id="years_of_experience"
+                          value={form.years_of_experience}
                           onChange={handleChange}
                           min="0"
                           placeholder="e.g. 5"
-                          step="0.5"
+                          step="1"
                           type="number"
                           className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary focus:ring-primary sm:text-sm py-2.5"
                         />

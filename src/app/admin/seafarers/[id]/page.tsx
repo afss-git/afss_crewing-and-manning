@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 
@@ -50,7 +50,7 @@ export default function AdminSeafarerProfilePage() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   // Fetch user profile data
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -62,11 +62,14 @@ export default function AdminSeafarerProfilePage() {
       }
 
       // Fetch complete seafarer profile using the new admin endpoint
-      const response = await fetch(`/api/v1/admin/seafarers/${userId}/profile`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `/api/v1/admin/seafarers/${userId}/profile`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -79,14 +82,15 @@ export default function AdminSeafarerProfilePage() {
 
       // The new API returns data in the correct format, so we can use it directly
       setUserProfile(seafarerData);
-
     } catch (err) {
       console.error("Failed to fetch seafarer profile:", err);
-      setError(err instanceof Error ? err.message : "Failed to load seafarer profile");
+      setError(
+        err instanceof Error ? err.message : "Failed to load seafarer profile",
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, router]);
 
   // Handle document approval
   const handleApproveDocument = async (documentId: number) => {
@@ -99,13 +103,16 @@ export default function AdminSeafarerProfilePage() {
         return;
       }
 
-      const response = await fetch(`/api/v1/admin/documents/${documentId}/approve`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/v1/admin/documents/${documentId}/approve`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to approve document");
@@ -113,7 +120,6 @@ export default function AdminSeafarerProfilePage() {
 
       // Refresh user data
       await fetchUserProfile();
-
     } catch (err) {
       console.error("Failed to approve document:", err);
       setError("Failed to approve document");
@@ -133,14 +139,19 @@ export default function AdminSeafarerProfilePage() {
         return;
       }
 
-      const response = await fetch(`/api/v1/admin/documents/${documentId}/reject`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/v1/admin/documents/${documentId}/reject`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            notes: notes || "Document rejected by admin",
+          }),
         },
-        body: JSON.stringify({ notes: notes || "Document rejected by admin" }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to reject document");
@@ -148,7 +159,6 @@ export default function AdminSeafarerProfilePage() {
 
       // Refresh user data
       await fetchUserProfile();
-
     } catch (err) {
       console.error("Failed to reject document:", err);
       setError("Failed to reject document");
@@ -177,14 +187,16 @@ export default function AdminSeafarerProfilePage() {
     if (userId) {
       fetchUserProfile();
     }
-  }, [userId]);
+  }, [userId, fetchUserProfile]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-text-main-light dark:text-text-main-dark">Loading user profile...</span>
+          <span className="text-text-main-light dark:text-text-main-dark">
+            Loading user profile...
+          </span>
         </div>
       </div>
     );
@@ -194,7 +206,9 @@ export default function AdminSeafarerProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md text-center">
-          <h2 className="text-xl font-bold text-red-700 dark:text-red-300 mb-3">Error Loading Profile</h2>
+          <h2 className="text-xl font-bold text-red-700 dark:text-red-300 mb-3">
+            Error Loading Profile
+          </h2>
           <p className="text-red-600 dark:text-red-200 mb-4">{error}</p>
           <button
             onClick={fetchUserProfile}
@@ -212,9 +226,15 @@ export default function AdminSeafarerProfilePage() {
     : "Unknown User";
 
   const totalDocuments = userProfile?.documents?.length || 0;
-  const approvedDocuments = userProfile?.documents?.filter(doc => doc.status === "approved").length || 0;
-  const rejectedDocuments = userProfile?.documents?.filter(doc => doc.status === "rejected").length || 0;
-  const pendingDocuments = userProfile?.documents?.filter(doc => doc.status === "pending").length || 0;
+  const approvedDocuments =
+    userProfile?.documents?.filter((doc) => doc.status === "approved").length ||
+    0;
+  const rejectedDocuments =
+    userProfile?.documents?.filter((doc) => doc.status === "rejected").length ||
+    0;
+  const pendingDocuments =
+    userProfile?.documents?.filter((doc) => doc.status === "pending").length ||
+    0;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased">
@@ -227,8 +247,12 @@ export default function AdminSeafarerProfilePage() {
               <span className="material-symbols-outlined">anchor</span>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-none tracking-tight">CrewManager</h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">Admin Console</p>
+              <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-none tracking-tight">
+                CrewManager
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">
+                Admin Console
+              </p>
             </div>
           </div>
         </div>
@@ -244,7 +268,9 @@ export default function AdminSeafarerProfilePage() {
           </Link>
 
           <div className="pt-4 pb-2 px-4">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Manning</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Manning
+            </p>
           </div>
 
           <Link
@@ -313,12 +339,17 @@ export default function AdminSeafarerProfilePage() {
             <div
               className="bg-center bg-no-repeat bg-cover rounded-full size-10 border-2 border-white shadow-sm"
               style={{
-                backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAsZTFzlPnO46EbTN1X0_9VBxm8wTOjRx-CVW_6Tu1emEgx1AKmkPeVTyiiJ8vtolcN1Ns7dSW3YNKYbUhJ4o2hMiLYHj3cY_z0VgSlX0GRDGlWEBRYH1LScz8H2LdxeHuXWBfTb7U4Cntn3zPvgvuNj_6K0svY_jdYPU6szssBE_1F_405Eh3Xajykj6Yh-CgU0FjT6Y1zDEF0FDeFDiSSdCWlnDApyHux-NRCqR0FXHJvrLINgBwcaul67zWwzox1_GMxJeUei5Nl')"
+                backgroundImage:
+                  "url('https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36')",
               }}
             ></div>
             <div className="flex flex-col">
-              <p className="text-slate-900 dark:text-white text-sm font-semibold">Capt. James T.</p>
-              <p className="text-slate-500 dark:text-slate-400 text-xs">Senior Crew Manager</p>
+              <p className="text-slate-900 dark:text-white text-sm font-semibold">
+                Capt. James T.
+              </p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs">
+                Senior Crew Manager
+              </p>
             </div>
           </div>
         </div>
@@ -335,11 +366,15 @@ export default function AdminSeafarerProfilePage() {
             >
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Seafarer Profile</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+              Seafarer Profile
+            </h2>
           </div>
           <div className="flex items-center gap-3">
             <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm shadow-primary/20 transition-colors">
-              <span className="material-symbols-outlined text-[20px]">edit</span>
+              <span className="material-symbols-outlined text-[20px]">
+                edit
+              </span>
               <span>Edit Profile</span>
             </button>
           </div>
@@ -355,7 +390,10 @@ export default function AdminSeafarerProfilePage() {
                 <div className="absolute -bottom-16 left-8">
                   <div className="w-32 h-32 rounded-full border-4 border-white dark:border-surface-dark shadow-lg bg-gray-200 overflow-hidden">
                     <div className="w-full h-full flex items-center justify-center bg-primary text-white text-4xl font-bold">
-                      {displayName.split(' ').map(n => n[0]).join('')}
+                      {displayName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </div>
                   </div>
                 </div>
@@ -384,16 +422,28 @@ export default function AdminSeafarerProfilePage() {
                   {/* Document Status Summary */}
                   <div className="flex items-center gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{approvedDocuments}</div>
-                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">Approved</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {approvedDocuments}
+                      </div>
+                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">
+                        Approved
+                      </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-600">{pendingDocuments}</div>
-                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">Pending</div>
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {pendingDocuments}
+                      </div>
+                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">
+                        Pending
+                      </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{rejectedDocuments}</div>
-                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">Rejected</div>
+                      <div className="text-2xl font-bold text-red-600">
+                        {rejectedDocuments}
+                      </div>
+                      <div className="text-xs text-text-muted-light dark:text-text-muted-dark">
+                        Rejected
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -404,7 +454,9 @@ export default function AdminSeafarerProfilePage() {
             <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary dark:text-red-400">description</span>
+                  <span className="material-symbols-outlined text-primary dark:text-red-400">
+                    description
+                  </span>
                   <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
                     Documents ({totalDocuments})
                   </h3>
@@ -425,19 +477,24 @@ export default function AdminSeafarerProfilePage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h4 className="font-semibold text-text-main-light dark:text-text-main-dark capitalize">
-                            {document.doc_type ? document.doc_type.replace(/_/g, ' ') : 'Unknown Document'}
+                            {document.doc_type
+                              ? document.doc_type.replace(/_/g, " ")
+                              : "Unknown Document"}
                           </h4>
                           <p className="text-xs text-text-muted-light dark:text-text-muted-dark">
-                            Uploaded: {new Date(document.created_at).toLocaleDateString()}
+                            Uploaded:{" "}
+                            {new Date(document.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          document.status === "approved"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                            : document.status === "rejected"
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            document.status === "approved"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : document.status === "rejected"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          }`}
+                        >
                           {document.status}
                         </span>
                       </div>
@@ -445,7 +502,9 @@ export default function AdminSeafarerProfilePage() {
                       {/* Document Actions */}
                       <div className="flex items-center gap-2 mb-3">
                         <button
-                          onClick={() => window.open(document.file_url, '_blank')}
+                          onClick={() =>
+                            window.open(document.file_url, "_blank")
+                          }
                           className="flex-1 text-xs bg-primary hover:bg-primary-hover text-white px-3 py-2 rounded font-medium transition-colors"
                         >
                           View Document
@@ -456,37 +515,57 @@ export default function AdminSeafarerProfilePage() {
                       </div>
 
                       {/* Admin Actions */}
-                      {document.status === "pending" && (
+                      {document.status === "pending" ? (
                         <div className="space-y-2">
                           <button
                             onClick={() => handleApproveDocument(document.id)}
                             disabled={actionLoading === document.id}
                             className="w-full text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-medium transition-colors disabled:opacity-50"
                           >
-                            {actionLoading === document.id ? "Approving..." : "Approve"}
+                            {actionLoading === document.id
+                              ? "Approving..."
+                              : "Approve"}
                           </button>
                           <button
                             onClick={() => handleRejectDocument(document.id)}
                             disabled={actionLoading === document.id}
                             className="w-full text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded font-medium transition-colors disabled:opacity-50"
                           >
-                            {actionLoading === document.id ? "Rejecting..." : "Reject"}
+                            {actionLoading === document.id
+                              ? "Rejecting..."
+                              : "Reject"}
                           </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="w-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-3 py-2 rounded font-medium text-center">
+                            {document.status === "approved"
+                              ? "✓ Document Approved"
+                              : "✗ Document Rejected"}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                            No actions available
+                          </p>
                         </div>
                       )}
 
                       {/* Admin Notes */}
                       {document.admin_notes && (
                         <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs">
-                          <p className="font-medium text-yellow-800 dark:text-yellow-200">Admin Note:</p>
-                          <p className="text-yellow-700 dark:text-yellow-300">{document.admin_notes}</p>
+                          <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                            Admin Note:
+                          </p>
+                          <p className="text-yellow-700 dark:text-yellow-300">
+                            {document.admin_notes}
+                          </p>
                         </div>
                       )}
 
                       {/* Verification Info */}
                       {document.verified_at && (
                         <div className="mt-2 text-xs text-text-muted-light dark:text-text-muted-dark">
-                          Verified on: {new Date(document.verified_at).toLocaleDateString()}
+                          Verified on:{" "}
+                          {new Date(document.verified_at).toLocaleDateString()}
                         </div>
                       )}
                     </div>
@@ -494,7 +573,9 @@ export default function AdminSeafarerProfilePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-text-muted-light dark:text-text-muted-dark">
-                  <span className="material-symbols-outlined text-4xl mb-2">description</span>
+                  <span className="material-symbols-outlined text-4xl mb-2">
+                    description
+                  </span>
                   <p>No documents uploaded yet.</p>
                 </div>
               )}
@@ -504,7 +585,9 @@ export default function AdminSeafarerProfilePage() {
             {userProfile?.profile && (
               <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-6">
                 <div className="flex items-center gap-2 mb-6">
-                  <span className="material-symbols-outlined text-primary dark:text-red-400">person</span>
+                  <span className="material-symbols-outlined text-primary dark:text-red-400">
+                    person
+                  </span>
                   <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
                     Personal Information
                   </h3>
@@ -512,65 +595,87 @@ export default function AdminSeafarerProfilePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Full Name</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Full Name
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
-                      {userProfile.profile.first_name} {userProfile.profile.last_name}
+                      {userProfile.profile.first_name}{" "}
+                      {userProfile.profile.last_name}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Email</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Email
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
                       {userProfile.email}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Phone</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Phone
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
                       {userProfile.profile.phone_number}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Date of Birth</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Date of Birth
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
-                      {new Date(userProfile.profile.date_of_birth).toLocaleDateString()}
+                      {new Date(
+                        userProfile.profile.date_of_birth,
+                      ).toLocaleDateString()}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Gender</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Gender
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium capitalize">
                       {userProfile.profile.gender}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Nationality</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Nationality
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
                       {userProfile.profile.nationality}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Rank</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Rank
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium capitalize">
                       {userProfile.profile.rank}
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Years of Experience</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Years of Experience
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
                       {userProfile.profile.years_of_experience} years
                     </p>
                   </div>
 
                   <div className="space-y-1 md:col-span-2">
-                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">Address</label>
+                    <label className="text-sm font-medium text-text-muted-light dark:text-text-muted-dark">
+                      Address
+                    </label>
                     <p className="text-text-main-light dark:text-text-main-dark font-medium">
-                      {userProfile.profile.address}, {userProfile.profile.city}, {userProfile.profile.state_province}
+                      {userProfile.profile.address}, {userProfile.profile.city},{" "}
+                      {userProfile.profile.state_province}
                     </p>
                   </div>
                 </div>
@@ -580,25 +685,35 @@ export default function AdminSeafarerProfilePage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-green-600">verified_user</span>
-                        <span className="text-sm font-medium">Email Verified</span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          userProfile.is_verified
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                            : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                        }`}>
+                        <span className="material-symbols-outlined text-green-600">
+                          verified_user
+                        </span>
+                        <span className="text-sm font-medium">
+                          Email Verified
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            userProfile.is_verified
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                          }`}
+                        >
                           {userProfile.is_verified ? "Verified" : "Unverified"}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Application Status</span>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        userProfile.is_approved
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                      }`}>
+                      <span className="text-sm font-medium">
+                        Application Status
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                          userProfile.is_approved
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                        }`}
+                      >
                         {userProfile.is_approved ? "Approved" : "Pending"}
                       </span>
                     </div>
@@ -610,7 +725,9 @@ export default function AdminSeafarerProfilePage() {
             {/* Application Status */}
             <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-6">
               <div className="flex items-center gap-2 mb-6">
-                <span className="material-symbols-outlined text-primary dark:text-red-400">analytics</span>
+                <span className="material-symbols-outlined text-primary dark:text-red-400">
+                  analytics
+                </span>
                 <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
                   Application Status
                 </h3>
@@ -619,44 +736,60 @@ export default function AdminSeafarerProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-background-light dark:bg-background-dark p-4 rounded-lg border border-border-light dark:border-border-dark">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm font-medium">
+                      Overall Progress
+                    </span>
                     <span className="text-lg font-bold">
-                      {totalDocuments > 0 ? Math.round((approvedDocuments / totalDocuments) * 100) : 0}%
+                      {totalDocuments > 0
+                        ? Math.round((approvedDocuments / totalDocuments) * 100)
+                        : 0}
+                      %
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-primary h-2 rounded-full"
-                      style={{ width: `${totalDocuments > 0 ? (approvedDocuments / totalDocuments) * 100 : 0}%` }}
+                      style={{
+                        width: `${totalDocuments > 0 ? (approvedDocuments / totalDocuments) * 100 : 0}%`,
+                      }}
                     ></div>
                   </div>
                 </div>
 
                 <div className="bg-background-light dark:bg-background-dark p-4 rounded-lg border border-border-light dark:border-border-dark">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Documents Reviewed</span>
-                    <span className="text-lg font-bold">{approvedDocuments + rejectedDocuments}</span>
+                    <span className="text-sm font-medium">
+                      Documents Reviewed
+                    </span>
+                    <span className="text-lg font-bold">
+                      {approvedDocuments + rejectedDocuments}
+                    </span>
                   </div>
                   <p className="text-xs text-text-muted-light dark:text-text-muted-dark">
-                    {totalDocuments - pendingDocuments} of {totalDocuments} processed
+                    {totalDocuments - pendingDocuments} of {totalDocuments}{" "}
+                    processed
                   </p>
                 </div>
 
                 <div className="bg-background-light dark:bg-background-dark p-4 rounded-lg border border-border-light dark:border-border-dark">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Application Status</span>
-                    <span className={`text-sm font-bold ${
-                      pendingDocuments === 0 && approvedDocuments > 0
-                        ? "text-green-600"
-                        : rejectedDocuments > 0
-                        ? "text-red-600"
-                        : "text-yellow-600"
-                    }`}>
+                    <span className="text-sm font-medium">
+                      Application Status
+                    </span>
+                    <span
+                      className={`text-sm font-bold ${
+                        pendingDocuments === 0 && approvedDocuments > 0
+                          ? "text-green-600"
+                          : rejectedDocuments > 0
+                            ? "text-red-600"
+                            : "text-yellow-600"
+                      }`}
+                    >
                       {pendingDocuments === 0 && approvedDocuments > 0
                         ? "Ready for Review"
                         : rejectedDocuments > 0
-                        ? "Requires Attention"
-                        : "Under Review"}
+                          ? "Requires Attention"
+                          : "Under Review"}
                     </span>
                   </div>
                   <p className="text-xs text-text-muted-light dark:text-text-muted-dark">

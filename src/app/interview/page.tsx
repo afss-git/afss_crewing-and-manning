@@ -60,8 +60,7 @@ export default function InterviewPage() {
               <div
                 className="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20 cursor-pointer"
                 style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDZ_YJ-YmArU2yAgws6JkaBmLx-TL8Gkr7ThRgOvjJud2A8yw2E6749bShCP5DKbkCTAWZT_-BxGBdRX57yBLbLF7vSzwgyaLf9OreV7mohIMmpOUoLj9RBHni1HBcLsHOD7bNiVgz05uOzbWUabEbBJdDj1D8kWKdh4uvo1bRbfYJ28pMWGsSOOpQFbKYPKNd_rNFBEEKIotGMX6JGTArDTImHa8Rq63kGI7tXV-SCaPwmYNdXT9SbjHXOKdtv8SNRNSds42yuLs85')",
+                  backgroundImage: "url('/images/default-user-avatar.jpg')",
                 }}
                 data-alt="Profile picture of a seafarer"
               ></div>
@@ -172,8 +171,7 @@ export default function InterviewPage() {
                 <div
                   className="w-full md:w-1/3 min-h-[200px] bg-cover bg-center relative"
                   style={{
-                    backgroundImage:
-                      "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAsNGQl-WQNKxovJWVJLOD9lsUgrjUIQ62OFy0ocNBfQWakp8NvvV1ejNheOND1S2XJmyBaT9mrCag_YnD29x6YujStIyjc2BtBo8Osu6Xcl2YjAUlb8xhh8b2YFJX4JdGf8bbBteXVLM157hyjp5edwsyVZgOA6gG95NiJrwjZirttLZB3S2GVQgiKhOUexmz4rScWotZciJ4GF4BBm_bgSyK5OxP4i7NdidCLdCvv3asC7iu5mtyYL-qlb83YfijlKD3st6iQR_jj')",
+                    backgroundImage: "url('/images/default-user-avatar.jpg')",
                   }}
                   data-alt="Abstract view of a ship's bridge window looking out to sea"
                 >
@@ -356,7 +354,10 @@ export default function InterviewPage() {
       {/* Simple Footer */}
       <footer className="border-t border-border-color dark:border-gray-800 bg-card-light dark:bg-card-dark py-6 mt-auto">
         <div className="px-6 md:px-12 lg:px-20 mx-auto max-w-[1440px] text-center md:text-left flex flex-col md:flex-row justify-between items-center text-sm text-text-muted">
-          <p>© {new Date().getFullYear()} Maritime Crewing Management. All rights reserved.</p>
+          <p>
+            © {new Date().getFullYear()} Maritime Crewing Management. All rights
+            reserved.
+          </p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <a className="hover:text-primary" href="#">
               Help Center

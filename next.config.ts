@@ -5,9 +5,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-        pathname: "/aida-public/**",
+        hostname: "ui-avatars.com",
+        pathname: "/api/**",
       },
+      // Add any other external image domains here as needed
     ],
   },
 };

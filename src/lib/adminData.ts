@@ -23,7 +23,7 @@ export async function approveUser(userId: string): Promise<void> {
 
 export async function updateDocumentNotes(
   docId: string,
-  notes: string
+  notes: string,
 ): Promise<any> {
   const id = Number(docId);
   const doc = await prisma.document.update({
@@ -36,7 +36,7 @@ export async function updateDocumentNotes(
 export type AdminCredentialResult = { email: string; role: string } | null;
 export async function verifyAdminCredentials(
   email: string,
-  password: string
+  password: string,
 ): Promise<AdminCredentialResult> {
   let admin = await prisma.admin.findUnique({ where: { email } });
   // If no admin in DB but env vars provided, create admin from env for local dev
@@ -63,9 +63,19 @@ export async function verifyAdminCredentials(
 
 export async function rejectDocument(
   docId: string,
-  notes?: string
+  notes?: string,
 ): Promise<any> {
   const id = Number(docId);
+
+  // Check if document exists first
+  const existingDoc = await prisma.document.findUnique({
+    where: { id },
+  });
+
+  if (!existingDoc) {
+    throw new Error(`Document with ID ${id} not found`);
+  }
+
   const doc = await prisma.document.update({
     where: { id },
     data: {
@@ -79,6 +89,29 @@ export async function rejectDocument(
 
 export async function approveDocument(docId: string): Promise<any> {
   const id = Number(docId);
+
+  // Check if document exists first
+  const existingDoc = await prisma.document.findUnique({
+    where: { id },
+  });
+
+  if (!existingDoc) {
+    throw new Error(`Document with ID ${id} not found`);
+  }
+
+  // Check if document is already approved
+  if (existingDoc.status === "approved") {
+    console.log(
+      `Document ${id} is already approved, updating verifiedAt timestamp`,
+    );
+    // Just update the verified timestamp
+    const doc = await prisma.document.update({
+      where: { id },
+      data: { verifiedAt: new Date() },
+    });
+    return doc;
+  }
+
   const doc = await prisma.document.update({
     where: { id },
     data: { status: "approved", verifiedAt: new Date() },
@@ -106,7 +139,7 @@ export async function getPendingUsers(): Promise<any> {
     const docs = u.documents || [];
     if (requiredTypes.length > 0) {
       const hasAll = requiredTypes.every((t) =>
-        docs.some((d) => d.docType === t)
+        docs.some((d) => d.docType === t),
       );
       if (!hasAll) continue;
     } else if (docs.length === 0) continue;
@@ -127,11 +160,11 @@ export async function getPendingUsers(): Promise<any> {
 export async function getAllUsers(): Promise<any> {
   const users = await prisma.user.findMany({
     include: {
-      documents: true
-    }
+      documents: true,
+    },
   });
 
-  return users.map(user => ({
+  return users.map((user) => ({
     user_id: user.id,
     email: user.email,
     first_name: user.firstName,

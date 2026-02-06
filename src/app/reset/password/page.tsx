@@ -82,8 +82,7 @@ function ResetPasswordPage() {
         <div
           className="h-full w-full bg-cover bg-center opacity-20 dark:opacity-10"
           style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDuTf7xDXz7EYUie5hlNWsYgGstcytrzX93VoO0FpPixnaLA99xQaBG6ZP7pNdnWlyRlmVzgUZN-J65ma9K2zxCDb1I3sK5ZnOLgkXox8pPZjpowVSXyQoWGqTQ7yJs2zpb5iXN_zxl3DyMmFPTgLVQBn8XQZE-Wg72PIUTOFoLeV-lwliG5Ltm_qrU1F-VRU_fQZA_1n7dhQTIxyVJHiOojzAscMB2LxB9wLGBUHhOeCp9zqsY564mDikdS5xJPbI43dk1D1PRnAmg')",
+            backgroundImage: "url('/images/default-user-avatar.jpg')",
           }}
         ></div>
       </div>

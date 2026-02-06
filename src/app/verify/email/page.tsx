@@ -52,7 +52,7 @@ function EmailVerificationPage() {
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    idx: number
+    idx: number,
   ) => {
     if (e.key === "Backspace" && !code[idx] && idx > 0) {
       inputRefs[idx - 1].current?.focus();
@@ -119,7 +119,7 @@ function EmailVerificationPage() {
       if (!response.ok) {
         setError(
           data.detail ||
-            "Invalid or expired verification code. Please try again."
+            "Invalid or expired verification code. Please try again.",
         );
         setIsLoading(false);
         return;
@@ -143,24 +143,25 @@ function EmailVerificationPage() {
     setError(null);
 
     try {
-      // For now, we'll re-trigger registration or call a resend endpoint if available
-      // This is a placeholder - backend may need a specific resend endpoint
-      await fetch("/api/auth/register/seafarer", {
+      const response = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({
-          email: email,
-          password: "resend", // This won't work properly - need a dedicated resend endpoint
-        }),
+        body: JSON.stringify({ email }),
       });
 
-      // Even if it fails (email already registered), the backend might resend
-      setResendSuccess(true);
-      setTimeout(() => setResendSuccess(false), 5000);
-    } catch {
+      const data = await response.json();
+
+      if (response.ok) {
+        setResendSuccess(true);
+        setTimeout(() => setResendSuccess(false), 5000);
+      } else {
+        setError(data.detail || "Failed to resend verification code");
+      }
+    } catch (error) {
+      console.error("Resend error:", error);
       setError("Failed to resend verification code. Please try again.");
     } finally {
       setIsResending(false);
@@ -196,8 +197,7 @@ function EmailVerificationPage() {
           <div
             className="w-full h-32 bg-center bg-no-repeat bg-cover flex flex-col justify-end overflow-hidden relative"
             style={{
-              backgroundImage:
-                "url(https://lh3.googleusercontent.com/aida-public/AB6AXuBhAtNxIkBNP1NB0p0TsisTCz8mzb8SqqSbF8EqmucgahrngEYj3p-0IWmR7AEPbVsmt3EjuLmQm34uSTu_vYWPBMOqMRkaUixAHTlwBWQVgCbeYPFiP0hTeU9IQT5BpQeleNJjiySKn46SA4p0M6dkjmi3KuWnmz-LT2aMGwLuRfXdTWtSp27y14FBgtt5gthlIhbimX-lcbhCwTVtI4cRAaPbzoQQnRnxw3w-Jgua1CVdkp0QPKJ5z3GLQooq_XOZWAwsWYxUIiBC)",
+              backgroundImage: "url('/images/default-user-avatar.jpg')",
             }}
           >
             <div className="absolute inset-0 bg-primary/80 mix-blend-multiply"></div>

@@ -15,17 +15,183 @@ export default function DashboardPage() {
   // Notifications dropdown state
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Fetch profile if not already loaded
+  // Document status state
+  const [documentStatus, setDocumentStatus] = useState<{
+    total_documents: number;
+    approved_count: number;
+    rejected_count: number;
+    pending_count: number;
+    not_submitted_count: number;
+    submitted_documents: string[];
+    approved_documents: string[];
+    rejected_documents: string[];
+    not_submitted_documents: string[];
+  } | null>(null);
+  const [documentStatusLoading, setDocumentStatusLoading] = useState(false);
+
+  // Document list state for the table
+  const [documents, setDocuments] = useState<Array<{
+    id: string;
+    document_type: string;
+    status: string;
+    file_size?: string;
+    expiry_date?: string;
+    created_at: string;
+  }>>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+
+  // Meetings state for Upcoming Schedule
+  const [meetings, setMeetings] = useState<Array<{
+    id: string;
+    title: string;
+    scheduled_date: string;
+    type: string;
+    location: string;
+    host?: string;
+    status: string;
+  }>>([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
+
+  // Document preview modal state
+  const [previewDocument, setPreviewDocument] = useState<{
+    id: string;
+    document_type: string;
+    status: string;
+    file_size?: string;
+    expiry_date?: string;
+    file_url?: string;
+    file_name?: string;
+  } | null>(null);
+
+  // Pre-compute dates to avoid impure function calls during render
+  const currentDate = new Date();
+  const applicationReviewDate = new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const interviewDate = new Date(currentDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+  const medicalExamDate = new Date(currentDate.getTime() + 10 * 24 * 60 * 60 * 1000);
+  const deploymentDate = new Date(currentDate.getTime() + 18 * 24 * 60 * 60 * 1000);
+
+  // Human-readable document names mapping
+  const DOCUMENT_NAMES: Record<string, string> = {
+    'medical_fitness': 'Medical Certificate',
+    'sea_service': 'Sea Service Record',
+    'seaman_book': 'Seaman\'s Book',
+    'psc_lifeboat': 'PSC Lifeboat Certificate',
+    'stcw_basic_safety': 'STCW Basic Training',
+    'coc_or_rating': 'Certificate of Competency'
+  };
+
+  // Fetch document status on component mount
   useEffect(() => {
+    async function fetchDocumentStatus() {
+      if (!isHydrated || user?.role !== 'seafarer') return;
+
+      const token = localStorage.getItem('crew-manning-token');
+      if (!token) return;
+
+      setDocumentStatusLoading(true);
+      try {
+        const response = await fetch('/api/v1/seafarers/documents/status', {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDocumentStatus(data);
+        } else {
+          console.log('Failed to fetch document status:', response.status);
+        }
+      } catch (error) {
+        console.log('Error fetching document status:', error);
+      } finally {
+        setDocumentStatusLoading(false);
+      }
+    }
+
+    fetchDocumentStatus();
+  }, [isHydrated, user?.role]);
+
+  // Fetch documents for the table
+  useEffect(() => {
+    async function fetchDocuments() {
+      if (!isHydrated || user?.role !== 'seafarer') return;
+
+      const token = localStorage.getItem('crew-manning-token');
+      if (!token) return;
+
+      setDocumentsLoading(true);
+      try {
+        const response = await fetch('/api/v1/seafarers/documents', {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDocuments(data.documents || []);
+        } else {
+          console.log('Failed to fetch documents:', response.status);
+        }
+      } catch (error) {
+        console.log('Error fetching documents:', error);
+      } finally {
+        setDocumentsLoading(false);
+      }
+    }
+
+    fetchDocuments();
+  }, [isHydrated, user?.role]);
+
+  // Fetch meetings for Upcoming Schedule
+  useEffect(() => {
+    async function fetchMeetings() {
+      if (!isHydrated || user?.role !== 'seafarer') return;
+
+      setMeetingsLoading(true);
+      try {
+        const response = await fetch('/api/v1/seafarers/meetings?skip=0&limit=10');
+        if (response.ok) {
+          const data = await response.json();
+          setMeetings(data.meetings || []);
+        } else {
+          console.log('Failed to fetch meetings:', response.status);
+        }
+      } catch (error) {
+        console.log('Error fetching meetings:', error);
+      } finally {
+        setMeetingsLoading(false);
+      }
+    }
+
+    fetchMeetings();
+  }, [isHydrated, user?.role]);
+
+  // Ensure profile is loaded for seafarer dashboard (but avoid infinite loops)
+  useEffect(() => {
+    // Only fetch profile if: user is seafarer, no profile loaded, not already loading
     if (
       isHydrated &&
       user?.role === "seafarer" &&
       !profile &&
       !isProfileLoading
     ) {
-      fetchProfile();
+      console.log("Dashboard: Fetching profile for seafarer user...");
+      fetchProfile().catch((error) => {
+        console.log("Dashboard: Profile fetch failed:", error);
+        // Don't crash on error, just log it
+      });
     }
-  }, [isHydrated, user, profile, isProfileLoading, fetchProfile]);
+  }, [
+    isHydrated,
+    user?.role,
+    profile,
+    isProfileLoading,
+    fetchProfile,
+  ]);
 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
@@ -66,6 +232,49 @@ export default function DashboardPage() {
     "https://ui-avatars.com/api/?name=" +
       encodeURIComponent(displayName) +
       "&background=701012&color=fff";
+
+  // Calculate application progress
+  const calculateProgress = () => {
+    const applicationStatus = profile?.application_status;
+
+    // Step 1: Profile - Complete if profile exists
+    const step1Complete = !!profile?.id;
+
+    // Step 2: Documents - Complete if all required documents submitted
+    const step2Complete = documentStatus?.not_submitted_count === 0;
+
+    // Step 3: Review - Complete if approved or contract signed, active if under review
+    const step3Complete = ['approved', 'contract_signed'].includes(applicationStatus || '');
+    const step3Active = ['pending', 'under_review'].includes(applicationStatus || '');
+
+    // Step 4: Contract - Complete if contract signed
+    const step4Complete = applicationStatus === 'contract_signed';
+
+    // Determine current step and status
+    const currentStep = !step2Complete ? 2 : !step4Complete ? 3 : 4;
+    const isRejected = applicationStatus === 'rejected';
+
+    // Status header text
+    const statusHeader =
+      isRejected ? 'Application Rejected' :
+      step4Complete ? 'Congratulations!' :
+      step3Active ? 'Under Review' :
+      step1Complete && step2Complete ? 'Ready for Review' :
+      'Pending';
+
+    return {
+      step1Complete,
+      step2Complete,
+      step3Complete,
+      step3Active,
+      step4Complete,
+      currentStep,
+      statusHeader,
+      isRejected
+    };
+  };
+
+  const progress = calculateProgress();
 
   // Show loading state until hydrated
   if (!isHydrated) {
@@ -130,9 +339,11 @@ export default function DashboardPage() {
               description
             </span>
             <span className="font-medium text-sm">Documents</span>
-            <span className="ml-auto bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
-              1
-            </span>
+            {(documentStatus?.not_submitted_count ?? 0) > 0 && (
+              <span className="ml-auto bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                {documentStatus?.not_submitted_count ?? 0}
+              </span>
+            )}
           </a>
           <a
             className="nav-item flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -221,9 +432,11 @@ export default function DashboardPage() {
               description
             </span>
             <span className="font-medium text-sm">Documents</span>
-            <span className="ml-auto bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
-              1
-            </span>
+            {(documentStatus?.not_submitted_count ?? 0) > 0 && (
+              <span className="ml-auto bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                {documentStatus?.not_submitted_count ?? 0}
+              </span>
+            )}
           </a>
           <a
             className="nav-item flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -307,7 +520,7 @@ export default function DashboardPage() {
                         Document Required
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Please upload your Seaman&apos;s Book to continue.
+                        Please upload your Seaman's Book to continue.
                       </p>
                       <p className="text-xs text-gray-400 mt-2">2 hours ago</p>
                     </div>
@@ -360,24 +573,10 @@ export default function DashboardPage() {
                   Welcome back, {firstName}
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
-                  Here is what&apos;s happening with your applications today.
+                  Here is what's happening with your applications today.
                 </p>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() =>
-                    alert(
-                      "Export feature coming soon! This will download a PDF of your application status."
-                    )
-                  }
-                  className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    file_download
-                  </span>
-                  Export Status
-                </button>
-              </div>
+
             </div>
             {/* Status & Action Required (Hero Section) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -390,118 +589,246 @@ export default function DashboardPage() {
                       Application Status
                     </h3>
                     <p className="text-primary font-medium mt-1">
-                      Under Review
+                      {progress.statusHeader}
                     </p>
                   </div>
                   <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-                    Step 3 of 4
+                    Step {progress.currentStep} of 4
                   </span>
                 </div>
                 {/* Stepper Visual */}
                 <div className="relative mb-8 px-2">
                   <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 rounded-full z-0"></div>
-                  <div className="absolute top-1/2 left-0 w-[66%] h-1 bg-primary -translate-y-1/2 rounded-full z-0"></div>
-                  <div className="relative z-10 flex justify-between w-full">
+                  <div
+                    className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 rounded-full z-0 transition-all duration-500"
+                    style={{ width: `${(progress.currentStep - 1) * 33.33}%` }}
+                  ></div>
+                  <div className="relative z-10 flex justify-between w-full items-center">
+                    {/* Step 1: Profile */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors relative z-20 ${
+                        progress.step1Complete
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-300 text-gray-600'
+                      }`}>
                         <span className="material-symbols-outlined text-[16px]">
-                          check
+                          {progress.step1Complete ? 'check' : 'person'}
                         </span>
                       </div>
-                      <span className="text-xs font-medium text-gray-900 dark:text-white hidden sm:block">
+                      <span className={`text-xs font-medium hidden sm:block ${
+                        progress.step1Complete
+                          ? 'text-gray-900 dark:text-white'
+                          : 'text-gray-400'
+                      }`}>
                         Profile
                       </span>
                     </div>
+
+                    {/* Step 2: Documents */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors relative z-20 ${
+                        progress.step2Complete
+                          ? 'bg-primary text-white'
+                          : progress.step1Complete
+                          ? 'bg-primary text-white shadow-[0_0_0_4px_rgba(112,16,18,0.2)]'
+                          : 'bg-gray-300 text-gray-600'
+                      }`}>
                         <span className="material-symbols-outlined text-[16px]">
-                          check
+                          {progress.step2Complete ? 'check' : 'description'}
                         </span>
                       </div>
-                      <span className="text-xs font-medium text-gray-900 dark:text-white hidden sm:block">
+                      <span className={`text-xs font-medium hidden sm:block ${
+                        progress.step2Complete
+                          ? 'text-gray-900 dark:text-white'
+                          : progress.step1Complete
+                          ? 'text-primary font-bold'
+                          : 'text-gray-400'
+                      }`}>
                         Documents
                       </span>
                     </div>
+
+                    {/* Step 3: Review */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-[0_0_0_4px_rgba(112,16,18,0.2)]">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors relative z-20 ${
+                        progress.step3Complete
+                          ? 'bg-primary text-white'
+                          : progress.isRejected
+                          ? 'bg-red-500 text-white'
+                          : progress.step3Active
+                          ? 'bg-primary text-white shadow-[0_0_0_4px_rgba(112,16,18,0.2)]'
+                          : progress.step2Complete
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-300 text-gray-600'
+                      }`}>
                         <span className="material-symbols-outlined text-[16px]">
-                          sync
+                          {progress.step3Complete
+                            ? 'check'
+                            : progress.step3Active
+                            ? 'sync'
+                            : progress.isRejected
+                            ? 'cancel'
+                            : 'visibility'
+                          }
                         </span>
                       </div>
-                      <span className="text-xs font-bold text-primary hidden sm:block">
+                      <span className={`text-xs font-medium hidden sm:block ${
+                        progress.step3Complete
+                          ? 'text-gray-900 dark:text-white'
+                          : progress.step3Active
+                          ? 'text-primary font-bold'
+                          : progress.isRejected
+                          ? 'text-red-500 font-bold'
+                          : progress.step2Complete
+                          ? 'text-orange-500'
+                          : 'text-gray-400'
+                      }`}>
                         Review
                       </span>
                     </div>
+
+                    {/* Step 4: Contract */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 text-gray-300 flex items-center justify-center">
-                        <span className="text-xs font-bold">4</span>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-colors relative z-20 ${
+                        progress.step4Complete
+                          ? 'bg-primary text-white'
+                          : progress.step3Complete
+                          ? 'bg-primary text-white shadow-[0_0_0_4px_rgba(112,16,18,0.2)]'
+                          : progress.isRejected
+                          ? 'bg-gray-300 text-gray-600'
+                          : 'bg-gray-300 text-gray-600'
+                      }`}>
+                        <span className="material-symbols-outlined text-[16px]">
+                          {progress.step4Complete ? 'check' : 'handshake'}
+                        </span>
                       </div>
-                      <span className="text-xs font-medium text-gray-400 hidden sm:block">
+                      <span className={`text-xs font-medium hidden sm:block ${
+                        progress.step4Complete
+                          ? 'text-gray-900 dark:text-white'
+                          : progress.step3Complete && !progress.isRejected
+                          ? 'text-primary font-bold'
+                          : 'text-gray-400'
+                      }`}>
                         Contract
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700/50">
-                  <div className="bg-blue-100 text-blue-700 p-2 rounded-lg shrink-0">
-                    <span className="material-symbols-outlined">info</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Your application is currently being reviewed by the
-                      crewing manager. Expected completion by{" "}
-                      <span className="font-bold text-gray-900 dark:text-white">
-                        {new Date(
-                          Date.now() + 7 * 24 * 60 * 60 * 1000
-                        ).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                      .
-                    </p>
-                  </div>
+                  {(() => {
+                    // Get application status from profile data
+                    const status = profile?.application_status;
+                    let statusMessage = "";
+                    let statusDate = null;
+                    let iconType = "info";
+                    let statusColor = "blue";
+
+                    switch (status) {
+                      case 'pending':
+                        statusMessage = "Your application is currently being reviewed by the crewing manager. Expected completion by";
+                        statusDate = applicationReviewDate;
+                        break;
+                      case 'approved':
+                        statusMessage = "Congratulations! Your application has been approved and is now being processed.";
+                        iconType = "check_circle";
+                        statusColor = "green";
+                        break;
+                      case 'rejected':
+                        statusMessage = "Unfortunately, your application has been rejected. Please contact support for more information.";
+                        iconType = "cancel";
+                        statusColor = "red";
+                        break;
+                      case 'under_review':
+                        statusMessage = "Your application is currently under detailed review. We'll update you soon.";
+                        break;
+                      case 'contract_signed':
+                        statusMessage = "Your contract has been signed! Welcome aboard our maritime community!";
+                        iconType = "celebration";
+                        statusColor = "green";
+                        break;
+                      default:
+                        statusMessage = "Your application is being processed. Please check back later.";
+                        break;
+                    }
+
+                    return (
+                      <>
+                        <div className={`p-2 rounded-lg shrink-0 ${
+                          statusColor === 'green' ? 'bg-green-100 text-green-700' :
+                          statusColor === 'red' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          <span className="material-symbols-outlined">{iconType}</span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {statusMessage}
+                            {statusDate && (
+                              <>
+                                {" "}
+                                <span className="font-bold text-gray-900 dark:text-white">
+                                  {statusDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                                .
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
-              {/* Action Card */}
-              <div className="bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden flex flex-col">
-                <div
-                  className="h-32 bg-cover bg-center relative"
-                  style={{
-                    backgroundImage:
-                      "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCH37CPsEnfZ0px5lKes-whha7qdNHwSZWmIjmJ1FS7Av5D-S-j0b9rPs3CBuXo4xCNeDXxKB2jXuE1B1HIlTHdF-1spEBcBIv9iypHdJAp6YZLP6nF_Pf3gA5H1JuaWqv2OoxWYJTIZddG58xSuC0Qo2Rcfawxk-yvejfMsapfb9XJ2xXeGE61q4cIIKDDWe71Q0v3WdNEEshwYapNCXAPbBB_j-0JicN-kMyA0-JfJsM5bUfQQaY7Zvw2qWfZJRPqZSH8zhJ49IJy')",
-                  }}
-                  data-alt="Ship deck view with ocean background"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex items-end">
-                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                      <span className="material-symbols-outlined text-red-400">
-                        warning
-                      </span>{" "}
-                      Action Required
-                    </h3>
-                  </div>
-                </div>
-                <div className="p-5 flex-1 flex flex-col justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                      Your <strong>Seaman&apos;s Book</strong> scan is missing
-                      or illegible. Please upload a high-quality scan to proceed
-                      with the contract drafting.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => router.push("/seafarer/documents")}
-                    className="w-full bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              {/* Dynamic Action Required Card */}
+              {(documentStatus?.not_submitted_count ?? 0) > 0 && (
+                <div className="bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden flex flex-col">
+                  <div
+                    className="h-32 bg-cover bg-center relative"
+                    style={{
+                      backgroundImage:
+                        "url('/images/default-seafarer-avatar.jpg')",
+                    }}
+                    data-alt="Ship deck view with ocean background"
                   >
-                    <span className="material-symbols-outlined text-[20px]">
-                      upload_file
-                    </span>
-                    Upload Document
-                  </button>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex items-end">
+                      <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-red-400">
+                          warning
+                        </span>{" "}
+                        Action Required
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                        {(() => {
+                          const firstMissing = documentStatus?.not_submitted_documents?.[0];
+                          const docName = firstMissing ? DOCUMENT_NAMES[firstMissing] || firstMissing : 'Document';
+                          const remainingCount = (documentStatus?.not_submitted_count ?? 0) - 1;
+                          const message = remainingCount > 0
+                            ? `Your <strong>${docName}</strong> and ${remainingCount} other document${remainingCount > 1 ? 's' : ''} ${remainingCount > 1 ? 'are' : 'is'} missing or illegible. Please upload high-quality scans to proceed with the contract drafting.`
+                            : `Your <strong>${docName}</strong> is missing or illegible. Please upload a high-quality scan to proceed with the contract drafting.`;
+                          return <span dangerouslySetInnerHTML={{ __html: message }} />;
+                        })()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => router.push("/seafarer/documents")}
+                      className="w-full bg-primary hover:bg-primary-hover text-white py-2.5 px-4 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        upload_file
+                      </span>
+                      Upload {(documentStatus?.not_submitted_count ?? 0) > 1 ? 'Documents' : 'Document'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -562,9 +889,7 @@ export default function DashboardPage() {
                     Next Interview
                   </p>
                   <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                    {new Date(
-                      Date.now() + 5 * 24 * 60 * 60 * 1000
-                    ).toLocaleDateString("en-US", {
+                    {interviewDate.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                     })}
@@ -620,213 +945,341 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800 text-sm">
-                      <tr className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                        <td className="px-6 py-4 flex items-center gap-3">
-                          <div className="bg-red-50 text-red-700 p-1.5 rounded">
-                            <span className="material-symbols-outlined text-[20px]">
-                              picture_as_pdf
-                            </span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              Seaman&apos;s Book
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              PDF, 2.4MB
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>{" "}
-                            Missing
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                          -
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => router.push("/seafarer/documents")}
-                            className="text-primary hover:text-primary-hover font-medium text-sm"
-                          >
-                            Upload
-                          </button>
-                        </td>
-                      </tr>
-                      <tr className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                        <td className="px-6 py-4 flex items-center gap-3">
-                          <div className="bg-blue-50 text-blue-700 p-1.5 rounded">
-                            <span className="material-symbols-outlined text-[20px]">
-                              picture_as_pdf
-                            </span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              Passport
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              PDF, 1.1MB
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>{" "}
-                            Verified
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                          12 Aug 2028
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                            <span className="material-symbols-outlined text-[20px]">
-                              more_vert
-                            </span>
-                          </button>
-                        </td>
-                      </tr>
-                      <tr className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                        <td className="px-6 py-4 flex items-center gap-3">
-                          <div className="bg-blue-50 text-blue-700 p-1.5 rounded">
-                            <span className="material-symbols-outlined text-[20px]">
-                              picture_as_pdf
-                            </span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              STCW Basic Training
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              PDF, 3.2MB
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>{" "}
-                            Verified
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                          05 Jan 2025
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                            <span className="material-symbols-outlined text-[20px]">
-                              more_vert
-                            </span>
-                          </button>
-                        </td>
-                      </tr>
+                      {/* Show loading state while fetching documents */}
+                      {documentsLoading ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                            Loading documents...
+                          </td>
+                        </tr>
+                      ) : (() => {
+                        // Create combined list: approved documents first, then missing documents
+                        let displayDocuments = [];
+
+                        // Add approved documents (limit to 2)
+                        const approvedDocs = documents.filter(doc =>
+                          doc.status === 'approved' || doc.status === 'verified'
+                        ).slice(0, 2);
+
+                        // Add pending/rejected documents (limit to 1)
+                        const pendingDocs = documents.filter(doc =>
+                          doc.status === 'pending' || doc.status === 'rejected'
+                        ).slice(0, 1);
+
+                        // Combine arrays
+                        displayDocuments = [...approvedDocs, ...pendingDocs];
+
+                        // If we don't have enough real documents, add missing ones
+                        if (displayDocuments.length < 3 && documentStatus && (documentStatus.not_submitted_count ?? 0) > 0) {
+                          const missingCount = 3 - displayDocuments.length;
+                          const missingDocs = documentStatus.not_submitted_documents?.slice(0, missingCount) || [];
+
+                          missingDocs.forEach(missingDocType => {
+                            displayDocuments.push({
+                              id: `missing-${missingDocType}`,
+                              document_type: missingDocType,
+                              status: 'missing',
+                              file_size: '',
+                              expiry_date: ''
+                            });
+                          });
+                        }
+
+                        // If still no documents, show first 3 missing documents
+                        if (displayDocuments.length === 0 && documentStatus && (documentStatus.not_submitted_count ?? 0) > 0) {
+                          const missingDocs = documentStatus.not_submitted_documents?.slice(0, 3) || [];
+                          displayDocuments = missingDocs.map(missingDocType => ({
+                            id: `missing-${missingDocType}`,
+                            document_type: missingDocType,
+                            status: 'missing',
+                            file_size: '',
+                            expiry_date: ''
+                          }));
+                        }
+
+                        return displayDocuments.length > 0 ? (
+                          // Display combined documents
+                          displayDocuments.map((doc) => (
+                            <tr key={doc.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                              <td className="px-6 py-4 flex items-center gap-3">
+                                <div className={`p-1.5 rounded ${
+                                  doc.status === 'approved' ? 'bg-green-50 text-green-700' :
+                                  doc.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                                  doc.status === 'pending' ? 'bg-yellow-50 text-yellow-700' :
+                                  'bg-blue-50 text-blue-700'
+                                }`}>
+                                  <span className="material-symbols-outlined text-[20px]">
+                                    picture_as_pdf
+                                  </span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-gray-900 dark:text-white">
+                                    {DOCUMENT_NAMES[doc.document_type] || doc.document_type}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {doc.file_size || 'File uploaded'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  doc.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                  doc.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                  doc.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    doc.status === 'approved' ? 'bg-green-600' :
+                                    doc.status === 'rejected' ? 'bg-red-600' :
+                                    doc.status === 'pending' ? 'bg-yellow-600' :
+                                    'bg-blue-600'
+                                  }`}></span>
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                {doc.expiry_date || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPreviewDocument({
+                                      id: doc.id,
+                                      document_type: doc.document_type,
+                                      status: doc.status,
+                                      file_size: doc.file_size,
+                                      expiry_date: doc.expiry_date,
+                                      file_url: doc.id.startsWith('missing-') ? undefined : `/api/v1/seafarers/documents/${doc.id}/download`,
+                                      file_name: DOCUMENT_NAMES[doc.document_type] || doc.document_type
+                                    });
+                                  }}
+                                  className="text-primary hover:text-primary-hover text-sm font-medium"
+                                >
+                                  {doc.id.startsWith('missing-') ? 'Upload' : 'View'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                              No documents found.
+                            </td>
+                          </tr>
+                        );
+                      })()}
                     </tbody>
                   </table>
                 </div>
               </div>
-              {/* Upcoming Schedule */}
-              <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 p-6 flex flex-col">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                  Upcoming Schedule
-                </h3>
-                <div className="space-y-4">
-                  {/* Event 1 */}
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center min-w-[3rem] bg-gray-100 dark:bg-gray-800 rounded-lg p-2 h-fit">
-                      <span className="text-xs font-bold text-gray-500 uppercase">
-                        {new Date(
-                          Date.now() + 5 * 24 * 60 * 60 * 1000
-                        ).toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        {new Date(
-                          Date.now() + 5 * 24 * 60 * 60 * 1000
-                        ).getDate()}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="font-bold text-gray-900 dark:text-white text-sm">
-                        Technical Interview
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        14:00 - 15:00 • Video Call
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div
-                          className="h-6 w-6 rounded-full bg-gray-200 bg-cover bg-center"
-                          style={{
-                            backgroundImage:
-                              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuC2IfU-j9IqkwQTCj0US25BMUNk2CqLKx9uRg79mYJB4bha438gllFE-9cL64z57F3bwZilkZ6bihKHleXLSvorY0NZYiQzxd3SFw0kHFq9tLJdWNGkqovnWw69Tyt8hoWF5t8terXR_h3UEqQUe5r_IQs17chkSpW2pk_XJAD-QtOj3pK78l-uRh3ysaqWIPEKMblMx1xoYlM4v92Xocic12jCpdXDe6ohLWfS-NZlZwXy5PLGSiSPUOU5ducmoLhicTalSx39wUtE')",
-                          }}
-                        ></div>
-                        <span className="text-xs text-gray-600 dark:text-gray-300">
-                          with Capt. Williams
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="border-gray-100 dark:border-gray-800" />
-                  {/* Event 2 */}
-                  <div className="flex gap-4 opacity-70">
-                    <div className="flex flex-col items-center min-w-[3rem] bg-gray-100 dark:bg-gray-800 rounded-lg p-2 h-fit">
-                      <span className="text-xs font-bold text-gray-500 uppercase">
-                        {new Date(
-                          Date.now() + 10 * 24 * 60 * 60 * 1000
-                        ).toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        {new Date(
-                          Date.now() + 10 * 24 * 60 * 60 * 1000
-                        ).getDate()}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="font-bold text-gray-900 dark:text-white text-sm">
-                        Pre-Embarkation Medical
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        09:00 - 11:30 • Clinic A
-                      </p>
-                    </div>
-                  </div>
-                  <hr className="border-gray-100 dark:border-gray-800" />
-                  {/* Event 3 */}
-                  <div className="flex gap-4 opacity-50">
-                    <div className="flex flex-col items-center min-w-[3rem] bg-gray-100 dark:bg-gray-800 rounded-lg p-2 h-fit">
-                      <span className="text-xs font-bold text-gray-500 uppercase">
-                        {new Date(
-                          Date.now() + 18 * 24 * 60 * 60 * 1000
-                        ).toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">
-                        {new Date(
-                          Date.now() + 18 * 24 * 60 * 60 * 1000
-                        ).getDate()}
-                      </span>
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="font-bold text-gray-900 dark:text-white text-sm">
-                        Potential Deployment
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Port of Rotterdam
-                      </p>
-                    </div>
-                  </div>
+
+              {/* Upcoming Schedule (Meetings) */}
+              <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Upcoming Schedule
+                  </h3>
+                  <a
+                    className="text-sm font-medium text-primary hover:text-primary-hover"
+                    href="/seafarer/interview"
+                  >
+                    View All
+                  </a>
                 </div>
-                <button
-                  onClick={() => router.push("/seafarer/interview")}
-                  className="mt-auto pt-4 text-primary text-sm font-medium hover:text-primary-hover flex items-center gap-1 self-start"
-                >
-                  View Calendar{" "}
-                  <span className="material-symbols-outlined text-[16px]">
-                    arrow_forward
-                  </span>
-                </button>
+                <div className="flex-1 overflow-y-auto">
+                  {meetingsLoading ? (
+                    <div className="p-6 text-center text-gray-500">
+                      Loading meetings...
+                    </div>
+                  ) : meetings.length > 0 ? (
+                    <div className="space-y-3 p-6">
+                      {meetings.slice(0, 5).map((meeting) => (
+                        <div
+                          key={meeting.id}
+                          className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary">
+                              {meeting.type === 'interview' ? 'person_search' :
+                               meeting.type === 'medical' ? 'medical_services' :
+                               meeting.type === 'training' ? 'school' :
+                               'event_available'}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">
+                              {meeting.title}
+                            </h4>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                              {meeting.location} • {new Date(meeting.scheduled_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                              {meeting.host && ` • Hosted by ${meeting.host}`}
+                            </p>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-2 ${
+                              meeting.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              meeting.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              meeting.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {meeting.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500">
+                      No upcoming meetings scheduled.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </main>
+
+        {/* Document Preview Modal */}
+        {previewDocument && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {previewDocument.document_type ? DOCUMENT_NAMES[previewDocument.document_type] || previewDocument.document_type : 'Document Preview'}
+                </h3>
+                <button
+                  onClick={() => setPreviewDocument(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="p-6">
+                {previewDocument.id.startsWith('missing-') ? (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="material-symbols-outlined text-blue-600 text-3xl">
+                        upload_file
+                      </span>
+                    </div>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                      Document Required
+                    </h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      This document is required for your application. Please upload it to continue.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setPreviewDocument(null);
+                        router.push("/seafarer/documents");
+                      }}
+                      className="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                    >
+                      Upload Document
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Document Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          Document Type
+                        </label>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          {DOCUMENT_NAMES[previewDocument.document_type] || previewDocument.document_type}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          Status
+                        </label>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          previewDocument.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          previewDocument.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          previewDocument.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            previewDocument.status === 'approved' ? 'bg-green-600' :
+                            previewDocument.status === 'rejected' ? 'bg-red-600' :
+                            previewDocument.status === 'pending' ? 'bg-yellow-600' :
+                            'bg-blue-600'
+                          }`}></span>
+                          {previewDocument.status}
+                        </span>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          File Size
+                        </label>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          {previewDocument.file_size || 'Unknown'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                          Expiry Date
+                        </label>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          {previewDocument.expiry_date ? new Date(previewDocument.expiry_date).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Document Preview Area */}
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-gray-900 dark:text-white">
+                          Document Preview
+                        </h4>
+                        {previewDocument.file_url && (
+                          <a
+                            href={previewDocument.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary-hover font-medium text-sm flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              download
+                            </span>
+                            Download
+                          </a>
+                        )}
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-8 text-center min-h-[300px] flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            <span className="material-symbols-outlined text-blue-600 text-3xl">
+                              picture_as_pdf
+                            </span>
+                          </div>
+                          <h5 className="text-lg font-bold text-gray-900 dark:text-white">
+                            {previewDocument.file_name}
+                          </h5>
+                          <p className="text-gray-600 dark:text-gray-400">
+                            Preview not available. Click download to view the document.
+                          </p>
+                          {previewDocument.file_url && (
+                            <a
+                              href={previewDocument.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                            >
+                              Open Document
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

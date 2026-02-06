@@ -20,13 +20,16 @@ export default function AdminLoginPage() {
 
     try {
       // Use the correct local admin API endpoint
-      const response = await fetch(`/api/v1/admin/login/admin?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await fetch(
+        `/api/v1/admin/login/admin?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
         },
-      });
+      );
 
       const data = await response.json();
 
@@ -235,7 +238,8 @@ export default function AdminLoginPage() {
             <div className="mt-12 pt-6 border-t border-gray-100 dark:border-gray-800">
               <div className="flex flex-col gap-4 text-center sm:text-left">
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  © {new Date().getFullYear()} MaritimeOps Stevedoring. All rights reserved.
+                  © {new Date().getFullYear()} MaritimeOps Stevedoring. All
+                  rights reserved.
                 </p>
                 <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-500 justify-center sm:justify-start">
                   <a className="hover:text-primary transition-colors" href="#">

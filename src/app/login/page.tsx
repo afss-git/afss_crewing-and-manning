@@ -31,7 +31,7 @@ export default function LoginPage() {
             className="w-full h-full bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage:
-                "url(https://lh3.googleusercontent.com/aida-public/AB6AXuB6OJbZveWBLcynq-MZ9MEjlbt0Sr4IvQ9MLCpRNH3UatWqGCDlLNVgYGdEp-S899Gfa3H4vT6oiPtZXBRCuo-2d48n7wDfvucWQO4TTJqzQ8LAKbatYuzz1c2juN_yRFSAPa8PJY1C3g-aCPZ_npIPLGCHLrcMg7xsf1CaNYBCGUXda44z8NOp5N9pi-K-HewF-0vCGF4Uj_2X6DbqMX1y19Vq4j9CHLz9blCaKe8JHhbwXStiHXzuR_i4i16Z3P6tngumypT6GeRc)",
+                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6OJbZveWBLcynq-MZ9MEjlbt0Sr4IvQ9MLCpRNH3UatWqGCDlLNVgYGdEp-S899Gfa3H4vT6oiPtZXBRCuo-2d48n7wDfvucWQO4TTJqzQ8LAKbatYuzz1c2juN_yRFSAPa8PJY1C3g-aCPZ_npIPLGCHLrcMg7xsf1CaNYBCGUXda44z8NOp5N9pi-K-HewF-0vCGF4Uj_2X6DbqMX1y19Vq4j9CHLz9blCaKe8JHhbwXStiHXzuR_i4i16Z3P6tngumypT6GeRc')",
             }}
           ></div>
           <div className="absolute bottom-0 left-0 p-12 z-20 text-white w-full max-w-2xl">
@@ -195,7 +195,10 @@ export default function LoginPage() {
               </div>
             </form>
             <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
-              <p>© {new Date().getFullYear()} CrewManager Platform. All rights reserved.</p>
+              <p>
+                © {new Date().getFullYear()} CrewManager Platform. All rights
+                reserved.
+              </p>
               <p className="mt-1">
                 Need help?{" "}
                 <a className="text-primary hover:underline" href="#">

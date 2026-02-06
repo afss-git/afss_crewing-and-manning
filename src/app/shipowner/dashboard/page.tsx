@@ -225,7 +225,7 @@ export default function ShipownerDashboard() {
                             className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-700 bg-cover bg-center shrink-0"
                             style={{
                               backgroundImage:
-                                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPyytAUtfoq3PI3lN1QYSqkhSfX2mBd8-9uOKLAU-wAy9yECS_YEw-_oNHw-UKBpdaoUkNkX4DdfJg4mCSbgvxsTuaMzWXVVRKQdfl-vPKRZB2GdfxgkkIOSSEylWcT_Fiyc-qUpqfsIiPpKPhbr8LedNTLoGzs_KZy4l__c1Ob2kC8O0pmtKSfhHF5OiavXMJ-MHp4UQ2DVeoaYGM-E_V_w_vxlnicTKPmedoqJXJW9ifOFYryUOFBsDcFhHqn0Y3ug6KVWniMLlj')",
+                                "url('/images/default-shipowner-avatar.jpg')",
                             }}
                           ></div>
                           <div>
@@ -248,7 +248,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="crew-1"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCV4FIcrqDwKANRU5coKAfDQOhvlqhFZz927kI5N8r5KPlNQ97Cvpf5_w_420QVz6-eFYPGVUaOYExoYwUmo-eUxe6yo1tSbiG6WmeNMU6_tQyA9ZjL7SqAbXwVEZIPCi4mCgaHnSZIKnldU8F-liPqh3dxSlU9x3Ccj6oIiJpoWre__byLbkGHNXTvgWZ8fFMDe74RzKToTpY-i3dfH2wsw67WwY46p9XJZgJpTEa9O4mizw-Idn8BIcM-FVWIp_PLPOg1Xo9NQrj"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -256,7 +256,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="crew-2"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD59F9ZVql_WfkmraS9Wse1cGdKWkw0F1PIzT_OuggEsry1SNa_PPsJ09lvRo5RFvJsnYQ0nI2_OioCSD4DOMD4mMlYzfFuK8Thzcz6ODA_NxIG0xAdAnm0dvkG9agl2MW83YAPPyVD3ShccapVbggOFOnRVrsWy2vsSx3kC7KciukEyk86qYsV-ZS_-YP2z7ChP_6FvpkQAFP2tqMi9-XREzSuR1OUBUzU_uGE23AtCqHX5emb3cRcnHzKyOZBdKRj5d2KIGlZqkTo"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -264,7 +264,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="crew-3"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAJsVFrxou4kPudT9jghJiwc1D4wLSHBOoUbkG0zYPsJ7CXgk4IY_H-wRBdj7Rm0jH9B5f3mjzlMje7-GaTdNa0M73bd93MnwPqkbT-hh6RHL7Kl7d7wXec4pQ9NKkKwPHfG8pzP3j4pWsahzMPwRwflc9mpEomG5UssdXjKN0_yfkRCdvfO9xF6E0AdwAVNkiuw7xT6_kDI3wpCTPeyBKVgPZduJi2vT1CnXGRrQu24BOcBZoy5AMDDUz1ApL4jAvr9wAZVNr6fkd"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -278,7 +278,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-1"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBr5mMZQ8d0b2KDQq6zJ8cx0h3kQY9e8gGk1xYd2x3oH1l9yXg6s7I5e8r0f3aG5fH6kJ7lK8Y9qP0R1S2T3U4V5W6X7Y8Z9a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -286,7 +286,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-2"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCd7nOq7Y8v6p5q4r3s2t1u0v9w8x7y6z5a4b3c2d1e0f9g8h7i6j5k4l3m2n1o0p9q8r7s6t5u4v3w2x1y0z"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -344,7 +344,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-a"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg1xYzQ9u8v7w6x5y4z3a2b1c0d9e8f7g6h5i4j3k2l1m0n9o8p7q6r5s4t3u2v1w0x9y8z7a6b5c4d3e2f1g0h9"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -352,7 +352,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-b"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCk2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9w0x1y2z3a4b5c6"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -360,7 +360,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-x"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9e8f7g6h5i4j3k2l1m0n9o8p7q6r5s4t3u2v1w0x9y8z7a6b5c4d3e2f1g0h9i8j7k6l5m4n3o2p1q0r9s8t7u6v5w4x3y2z1"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -368,7 +368,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt="member-y"
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuE0f1g2h3i4j5k6l7m8n9o0p1q2r3s4t5u6v7w8x9y0z1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -380,7 +380,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6QBrAVmpXDdPFSp1pHpPnnQaWON3B2vzmL9QHZUN2ulvwMTKkjUF5Vr7mL9RD1SIAtxW6KAF0nTX7n2w5bPG-ZEp0M_yAiwjXbVjjDywYan2MgWZ5JVDgjocjFNcIIKTKnW74oqHxE82oUmjGmGJ7g1bBSckIfjBlBcvwOw0aFqCLicMdXHqAeBFLtdtOSRG5Pk6QHVXhQaxxDBrBnt91e1-sX7fjNUWQD9vLzsPxPeWnUUiLCywcLXI7PBy-SM5-O27pGCZAbDvJ"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -388,7 +388,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS5b--k6j3T9UAgyCjqkjD84NYgHpOGs_dR20YmelfLPZYdtwO8SgD5ciZ76O0NTQscNBAU47JF3SUMJHFpACjS0tyzt9A2DUJ4Hsp0EsNrjt6X5cnd9uMX9rtLFJoMAQXOaE4CkQcNl6C1N-9_lZAX6hpSp0KpQ0iRLzRjWkmcX4Av7UUva6bzGVq4t6QkJpn_4RPPzG4_tS7BTw5FgfK2tKvEw-v0HlCnCr2iEgPIoLtBs-WjNnPf77647RLIWKeDC2Bi8kNJ5bz"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -460,7 +460,7 @@ export default function ShipownerDashboard() {
                             className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-700 bg-cover bg-center shrink-0"
                             style={{
                               backgroundImage:
-                                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDeXNAk7fhjFxjdZlG-XnRmgxW-VFuerO0ohAAGd-DIsOrWD3TrMO0Pk1Yc_iOAxS_LRWEWB9S0NY0U7xbq_1O6fo0DtSwB68sbF2NT2pYufq6XvhwW_eLL8ooOTAmsrRSLRfvhPNVWZBQBOO9PBDWnoSAwA7ee71RwMRbt3-JK5WF7bEmmeMwYKO6QYwzxJIJc6hconYrG287Ys0YuoOkhVs3UEuCBrvLvtRSlUz7mWbVWiGMKcEFAhCiWyD7qcUYZQL-I-UCW3Uxi')",
+                                "url('/images/default-shipowner-avatar.jpg')",
                             }}
                           ></div>
                           <div>
@@ -483,7 +483,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgwF0TEwnn3jljbIr6a09sS-O-0GDyi2JmF6lpLwRUOHMqV16Wj0EYyUdu8rYPq2ex23GV6tSlt34SYCbrcxt2vFha110gkRm2BdzHuMfHlfe8yETClzir-WpsOjOaiAgrs4mynz4ryvNY5QIE0TGV3Vnk4ePhkgh8GwKgYQ4FUmk89YoSS-Sc2cVUN806lbqlBFD4_7z9PKtq91Fw56ti0tUHMZv4lyZtu3DB5E2hlOTVfUwIH5o9EhmwecfO7Lz4kuYtpN9IvPmj"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -491,7 +491,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGe_j8gQs6JbIzagRM-4jC08CzujbPDWYzy0M1dZQXk63SJGU0e1RNxn7H4FvRr4yfju1-CvV3dxdduSK-TpDznVPvIk4CbHjill2_VycQlfQZRNEITDeqIZpagiwL5f3kRK8AQMIKLCBRS4whpHLFCUuCwvNNvexL1vMjGE5A58EiQ292f15ObH7i5jZW-cmRhPX6RxZO35E9NCiLxC_UEQg8o5mTbbM1V1SKumkq5RWUTr4NEzLrBaJAqmZDhHbz1M2J64Vd9Mmn"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -505,7 +505,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6QBrAVmpXDdPFSp1pHpPnnQaWON3B2vzmL9QHZUN2ulvwMTKkjUF5Vr7mL9RD1SIAtxW6KAF0nTX7n2w5bPG-ZEp0M_yAiwjXbVjjDywYan2MgWZ5JVDgjocjFNcIIKTKnW74oqHxE82oUmjGmGJ7g1bBSckIfjBlBcvwOw0aFqCLicMdXHqAeBFLtdtOSRG5Pk6QHVXhQaxxDBrBnt91e1-sX7fjNUWQD9vLzsPxPeWnUUiLCywcLXI7PBy-SM5-O27pGCZAbDvJ"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -513,7 +513,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS5b--k6j3T9UAgyCjqkjD84NYgHpOGs_dR20YmelfLPZYdtwO8SgD5ciZ76O0NTQscNBAU47JF3SUMJHFpACjS0tyzt9A2DUJ4Hsp0EsNrjt6X5cnd9uMX9rtLFJoMAQXOaE4CkQcNl6C1N-9_lZAX6hpSp0KpQ0iRLzRjWkmcX4Av7UUva6bzGVq4t6QkJpn_4RPPzG4_tS7BTw5FgfK2tKvEw-v0HlCnCr2iEgPIoLtBs-WjNnPf77647RLIWKeDC2Bi8kNJ5bz"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -571,7 +571,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9e8f7g6h5i4j3k2l1m0n9o8p7q6r5s4t3u2v1w0x9y8z7a6b5c4d3e2f1g0h9i8j7k6l5m4n3o2p1q0r9s8t7u6v5w4x3y2z1"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized
@@ -579,7 +579,7 @@ export default function ShipownerDashboard() {
                           <Image
                             alt=""
                             className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-[#1A2235]"
-                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS5b--k6j3T9UAgyCjqkjD84NYgHpOGs_dR20YmelfLPZYdtwO8SgD5ciZ76O0NTQscNBAU47JF3SUMJHFpACjS0tyzt9A2DUJ4Hsp0EsNrjt6X5cnd9uMX9rtLFJoMAQXOaE4CkQcNl6C1N-9_lZAX6hpSp0KpQ0iRLzRjWkmcX4Av7UUva6bzGVq4t6QkJpn_4RPPzG4_tS7BTw5FgfK2tKvEw-v0HlCnCr2iEgPIoLtBs-WjNnPf77647RLIWKeDC2Bi8kNJ5bz"
+                            src="/images/default-shipowner-avatar.jpg"
                             width={24}
                             height={24}
                             unoptimized

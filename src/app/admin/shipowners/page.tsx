@@ -96,7 +96,7 @@ export default function AdminShipOwnersPage() {
             : company.is_verified
               ? "pending"
               : "pending",
-          logo: "", // Could use a default logo
+          logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(company.company.name)}&background=1056A0&color=fff&size=128`,
           email: company.email,
           phone: company.company.contact_phone,
           address: company.company.hq_address,
@@ -849,7 +849,7 @@ export default function AdminShipOwnersPage() {
                     <div
                       className="size-8 rounded-full bg-gray-200 dark:bg-gray-700 bg-cover"
                       style={{
-                        backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuBepm3Lej9Iq-vI-cn-5_vTOj5LCUfCTCqZUIkeN0F-tWmuGe8u0trMyix4Lm8HULqa5y30qIfgx75W8-dwCQWMmMkLs5jfTVThmwYIyrk7F7okeZJM9FB0WPhT5k5OTeSF9lSOwrX7ByJQ2W6y59WGUYv2T_3UMUBvxWd8HYZ4HHQxlqWIBg-db8kjTZg_sYq7auwuBWvl7rbfSLFX61PQiKNyFRpHVi_tFf65cRaGd11xi8kbw32AuRijEQaOr7rfuRyv_nKK1_5f')`,
+                        backgroundImage: `url('https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=32')`,
                       }}
                     ></div>
                     <div>

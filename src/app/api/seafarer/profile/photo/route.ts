@@ -14,33 +14,59 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    console.log("Photo update request - Auth header:", authHeader);
+
     // Get the form data from the request
     const formData = await request.formData();
     const profilePhoto = formData.get("profile_photo");
 
-    if (!profilePhoto) {
+    if (!profilePhoto || !(profilePhoto instanceof File)) {
+      console.error("Invalid file:", profilePhoto);
       return NextResponse.json(
-        { detail: "No profile photo provided" },
+        { detail: "No valid profile photo provided" },
         { status: 400 }
       );
     }
 
-    // Create new FormData to send to backend
+    console.log("Photo update - File info:", {
+      name: profilePhoto.name,
+      size: profilePhoto.size,
+      type: profilePhoto.type
+    });
+
+    // Create new FormData to send to backend - ensure exact same field name
     const backendFormData = new FormData();
     backendFormData.append("profile_photo", profilePhoto);
 
+    console.log("Sending request to:", `${API_BASE_URL}/seafarers/profile/photo`);
+
     const response = await fetch(`${API_BASE_URL}/seafarers/profile/photo`, {
-      method: "PUT",
+      method: "PUT", 
       headers: {
         Authorization: authHeader,
-        // Don't set Content-Type - let fetch set it with boundary for multipart
+        // Note: No Content-Type header - let browser set multipart boundary
       },
       body: backendFormData,
     });
 
-    const data = await response.json();
+    // Parse response
+    const text = await response.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { detail: text || "Unknown response from server" };
+    }
+
+    console.log("External API response:", {
+      status: response.status,
+      statusText: response.statusText,
+      data: data,
+      responseText: text
+    });
 
     if (!response.ok) {
+      console.error("External API error:", response.status, data);
       return NextResponse.json(data, { status: response.status });
     }
 

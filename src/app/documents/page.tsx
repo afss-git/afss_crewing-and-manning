@@ -10,8 +10,7 @@ export default function DocumentsPage() {
             <div
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 shadow-sm"
               style={{
-                backgroundImage:
-                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBx8LMZJaipRIr2LPazSAaAZmftlGsUN0ntuvLS56FCsNSouRC12qgxcVFToAoBoNHdL1LJSkIRHTmL3H11UmFVM-TL6EAeFgbjzogrKOPcoSsHbTZgzrGA-C1DIXZF_ILkKizfiaq4wTfF-wt7JpEv7ztUp_hrb6ymrMUzy-wKcDCOmWg_111m4F0pYt0z7bvhK5rbH-tB_Bk3uvU8N6VkjHBhMzLS-91L94BbqK9fNQUadcwpCE3GW1RVEz5uZBKXIL9hlxAOE0bT')",
+                backgroundImage: "url('/images/default-user-avatar.jpg')",
               }}
               data-alt="Maritime logo abstract ocean wave"
             ></div>
@@ -86,8 +85,7 @@ export default function DocumentsPage() {
           <div
             className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-gray-200"
             style={{
-              backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBoeTOspl9Ww2Sb2PLl4jAGRBuNVx_KYV8cZp1ti3qLJF2zq_Cnz12fQwpwKC_wvtsoUV-EnfH-kimZO7hWia8WZy4HG_CgWRWSyEbzjRCMzQa3OZvB-MCzV_YT77-lUkzgnmZF7LH3dYmnNKagsBmWo5O8OKYsKCTOpZW7tioVQmiddlijwR-ZHy33ovqfmDlwoZDGJeE4N6vRbxmEQWzAuP260jS9XHUlnLebc0Du4HkU3yEggB5cnnnarFySGgpHSPZ_a2VmJl7K')",
+              backgroundImage: "url('/images/default-user-avatar.jpg')",
             }}
             data-alt="User profile picture man smiling"
           ></div>

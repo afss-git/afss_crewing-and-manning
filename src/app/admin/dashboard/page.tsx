@@ -1,23 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminProfile from "../../../components/AdminProfile";
 
 // Define TypeScript interfaces for our data
-interface Document {
-  id: number;
-  file_name: string;
-  doc_type: string;
-  status: "pending" | "approved" | "rejected";
-  file_url: string;
-  created_at: string;
-  admin_notes: string | null;
-  verified_at: string | null;
-  verified_by: number | null;
-}
-
 interface ApiSeafarer {
   user_id: number;
   email: string;
@@ -71,10 +59,12 @@ export default function AdminDashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | "pending" | "approved" | "rejected"
+  >("all");
 
   // Fetch admin data from API
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -101,6 +91,27 @@ export default function AdminDashboardPage() {
           router.push("/admin/login");
           return;
         }
+
+        if (response.status === 503) {
+          // External API is down - show degraded state but don't fail completely
+          const errorData = await response.json();
+          console.warn("External API unavailable, showing fallback state", errorData);
+          setAllSeafarers([]);
+          setSeafarers([]);
+          setStats({
+            totalSeafarers: 0,
+            newApplicants: 0,
+            verifiedSeafarers: 0,
+            shipOwners: 0,
+            activeContracts: 0,
+          });
+          setError(
+            "External API is temporarily unavailable. Data may be outdated.",
+          );
+          setLoading(false);
+          return;
+        }
+
         throw new Error(`Failed to fetch data: ${response.status}`);
       }
 
@@ -126,35 +137,43 @@ export default function AdminDashboardPage() {
       }
 
       // Map the API response to our dashboard data structure
-      const mappedSeafarers: Seafarer[] = seafarersData.map((seafarer: ApiSeafarer) => {
-        // Determine status based on is_approved
-        let status = "Pending";
-        if (seafarer.is_approved === true) {
-          status = "Approved";
-        } else if (seafarer.is_approved === false) {
-          status = "Pending";
-        } else {
-          status = "Rejected"; // For future when API supports rejected status
-        }
+      const mappedSeafarers: Seafarer[] = seafarersData.map(
+        (seafarer: ApiSeafarer) => {
+          // Determine status based on is_approved
+          let status = "Pending";
+          if (seafarer.is_approved === true) {
+            status = "Approved";
+          } else if (seafarer.is_approved === false) {
+            status = "Pending";
+          } else {
+            status = "Rejected"; // For future when API supports rejected status
+          }
 
-        return {
-          id: seafarer.user_id.toString(),
-          name: `${seafarer.first_name || ""} ${seafarer.last_name || ""}`.trim() || "Unknown Seafarer",
-          email: seafarer.email || "",
-          position: seafarer.rank || "Not specified",
-          date: new Date().toLocaleDateString(), // Since API doesn't provide date, use current date
-          status: status,
-          rank: seafarer.rank,
-          years_of_experience: seafarer.years_of_experience,
-          is_approved: seafarer.is_approved,
-        };
-      });
+          return {
+            id: seafarer.user_id.toString(),
+            name:
+              `${seafarer.first_name || ""} ${seafarer.last_name || ""}`.trim() ||
+              "Unknown Seafarer",
+            email: seafarer.email || "",
+            position: seafarer.rank || "Not specified",
+            date: new Date().toLocaleDateString(), // Since API doesn't provide date, use current date
+            status: status,
+            rank: seafarer.rank,
+            years_of_experience: seafarer.years_of_experience,
+            is_approved: seafarer.is_approved,
+          };
+        },
+      );
 
       // Calculate real stats from the data
       const calculatedStats = {
         totalSeafarers: mappedSeafarers.length,
-        newApplicants: mappedSeafarers.filter((s: Seafarer) => s.status === "Pending").length,
-        verifiedSeafarers: mappedSeafarers.filter((s: Seafarer) => s.status === "Approved").length,
+        newApplicants: mappedSeafarers.filter(
+          (s: Seafarer) => s.status === "Pending",
+        ).length,
+        verifiedSeafarers: mappedSeafarers.filter(
+          (s: Seafarer) => s.status === "Approved",
+        ).length,
         shipOwners: 0, // Would come from ship owners data if available
         activeContracts: 0, // Would come from contracts data if available
       };
@@ -192,14 +211,15 @@ export default function AdminDashboardPage() {
       setSeafarers(mappedSeafarers);
       setDeployments(sampleDeployments);
       setStats(calculatedStats);
-
     } catch (err) {
       console.error("Failed to fetch admin data:", err);
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard data",
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   // Filter seafarers based on active filter
   const applyFilter = (filter: "all" | "pending" | "approved" | "rejected") => {
@@ -207,11 +227,11 @@ export default function AdminDashboardPage() {
     if (filter === "all") {
       setSeafarers(allSeafarers);
     } else if (filter === "pending") {
-      setSeafarers(allSeafarers.filter(s => s.status === "Pending"));
+      setSeafarers(allSeafarers.filter((s) => s.status === "Pending"));
     } else if (filter === "approved") {
-      setSeafarers(allSeafarers.filter(s => s.status === "Approved"));
+      setSeafarers(allSeafarers.filter((s) => s.status === "Approved"));
     } else if (filter === "rejected") {
-      setSeafarers(allSeafarers.filter(s => s.status === "Rejected"));
+      setSeafarers(allSeafarers.filter((s) => s.status === "Rejected"));
     }
   };
 
@@ -225,7 +245,7 @@ export default function AdminDashboardPage() {
   // Fetch data on component mount
   useEffect(() => {
     fetchAdminData();
-  }, [router]);
+  }, [router, fetchAdminData]);
 
   // Check authentication
   useEffect(() => {
@@ -240,7 +260,9 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-text-main-light dark:text-text-main-dark">Loading dashboard...</span>
+          <span className="text-text-main-light dark:text-text-main-dark">
+            Loading dashboard...
+          </span>
         </div>
       </div>
     );
@@ -250,7 +272,9 @@ export default function AdminDashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md text-center">
-          <h2 className="text-xl font-bold text-red-700 dark:text-red-300 mb-3">Error Loading Dashboard</h2>
+          <h2 className="text-xl font-bold text-red-700 dark:text-red-300 mb-3">
+            Error Loading Dashboard
+          </h2>
           <p className="text-red-600 dark:text-red-200 mb-4">{error}</p>
           <button
             onClick={fetchAdminData}
@@ -274,8 +298,12 @@ export default function AdminDashboardPage() {
               <span className="material-symbols-outlined">anchor</span>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-none tracking-tight">CrewManager</h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">Admin Console</p>
+              <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-none tracking-tight">
+                CrewManager
+              </h1>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">
+                Admin Console
+              </p>
             </div>
           </div>
         </div>
@@ -291,7 +319,9 @@ export default function AdminDashboardPage() {
           </Link>
 
           <div className="pt-4 pb-2 px-4">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Manning</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Manning
+            </p>
           </div>
 
           <Link
@@ -367,14 +397,18 @@ export default function AdminDashboardPage() {
             <button className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
               <span className="material-symbols-outlined">menu</span>
             </button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+              Dashboard
+            </h2>
           </div>
 
           {/* Search Bar */}
           <div className="flex-1 max-w-xl px-8 hidden md:block">
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="material-symbols-outlined text-slate-400">search</span>
+                <span className="material-symbols-outlined text-slate-400">
+                  search
+                </span>
               </div>
               <input
                 className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 sm:text-sm transition-all"
@@ -409,12 +443,19 @@ export default function AdminDashboardPage() {
                     <span className="material-symbols-outlined">groups</span>
                   </div>
                   <span className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">trending_up</span> 2.5%
+                    <span className="material-symbols-outlined text-[14px]">
+                      trending_up
+                    </span>{" "}
+                    2.5%
                   </span>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Seafarers</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.totalSeafarers}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Total Seafarers
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {stats.totalSeafarers}
+                  </h3>
                 </div>
               </div>
 
@@ -424,15 +465,24 @@ export default function AdminDashboardPage() {
                 <div className="absolute top-0 right-0 size-2 bg-primary rounded-bl-lg"></div>
                 <div className="flex justify-between items-start">
                   <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg">
-                    <span className="material-symbols-outlined">person_add</span>
+                    <span className="material-symbols-outlined">
+                      person_add
+                    </span>
                   </div>
                   <span className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">trending_up</span> 12%
+                    <span className="material-symbols-outlined text-[14px]">
+                      trending_up
+                    </span>{" "}
+                    12%
                   </span>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">New Applicants</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.newApplicants}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    New Applicants
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {stats.newApplicants}
+                  </h3>
                 </div>
               </div>
 
@@ -440,15 +490,24 @@ export default function AdminDashboardPage() {
               <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between h-32 hover:border-primary/30 transition-colors group">
                 <div className="flex justify-between items-start">
                   <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
-                    <span className="material-symbols-outlined">verified_user</span>
+                    <span className="material-symbols-outlined">
+                      verified_user
+                    </span>
                   </div>
                   <span className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">trending_up</span> 1.8%
+                    <span className="material-symbols-outlined text-[14px]">
+                      trending_up
+                    </span>{" "}
+                    1.8%
                   </span>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Verified Seafarers</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.verifiedSeafarers}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Verified Seafarers
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {stats.verifiedSeafarers}
+                  </h3>
                 </div>
               </div>
 
@@ -459,12 +518,19 @@ export default function AdminDashboardPage() {
                     <span className="material-symbols-outlined">apartment</span>
                   </div>
                   <span className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">trending_up</span> 3%
+                    <span className="material-symbols-outlined text-[14px]">
+                      trending_up
+                    </span>{" "}
+                    3%
                   </span>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Ship Owners / Agents</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.shipOwners}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Ship Owners / Agents
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {stats.shipOwners}
+                  </h3>
                 </div>
               </div>
 
@@ -472,15 +538,24 @@ export default function AdminDashboardPage() {
               <div className="bg-surface-light dark:bg-surface-dark p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between h-32 hover:border-primary/30 transition-colors group">
                 <div className="flex justify-between items-start">
                   <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
-                    <span className="material-symbols-outlined">description</span>
+                    <span className="material-symbols-outlined">
+                      description
+                    </span>
                   </div>
                   <span className="text-green-600 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">trending_up</span> 5%
+                    <span className="material-symbols-outlined text-[14px]">
+                      trending_up
+                    </span>{" "}
+                    5%
                   </span>
                 </div>
                 <div>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Contracts</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.activeContracts}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                    Active Contracts
+                  </p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                    {stats.activeContracts}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -490,12 +565,17 @@ export default function AdminDashboardPage() {
               {/* Seafarers Table (Takes 2 columns) */}
               <div className="xl:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Seafarers</h2>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Seafarers
+                  </h2>
                   <Link
                     href="/admin/seafarers"
                     className="text-primary hover:text-primary-dark text-sm font-semibold flex items-center gap-1"
                   >
-                    View all <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    View all{" "}
+                    <span className="material-symbols-outlined text-[16px]">
+                      arrow_forward
+                    </span>
                   </Link>
                 </div>
 
@@ -519,7 +599,8 @@ export default function AdminDashboardPage() {
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
-                    Pending ({allSeafarers.filter(s => s.status === "Pending").length})
+                    Pending (
+                    {allSeafarers.filter((s) => s.status === "Pending").length})
                   </button>
                   <button
                     onClick={() => applyFilter("approved")}
@@ -529,7 +610,9 @@ export default function AdminDashboardPage() {
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
-                    Approved ({allSeafarers.filter(s => s.status === "Approved").length})
+                    Approved (
+                    {allSeafarers.filter((s) => s.status === "Approved").length}
+                    )
                   </button>
                   <button
                     onClick={() => applyFilter("rejected")}
@@ -539,7 +622,9 @@ export default function AdminDashboardPage() {
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
-                    Rejected ({allSeafarers.filter(s => s.status === "Rejected").length})
+                    Rejected (
+                    {allSeafarers.filter((s) => s.status === "Rejected").length}
+                    )
                   </button>
                 </div>
 
@@ -561,17 +646,28 @@ export default function AdminDashboardPage() {
                             <tr
                               key={seafarer.id}
                               className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
-                              onClick={() => router.push(`/admin/seafarers/${seafarer.id}`)}
+                              onClick={() =>
+                                router.push(`/admin/seafarers/${seafarer.id}`)
+                              }
                             >
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <div className="size-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 text-xs font-bold">
-                                    {seafarer.name.split(' ').map(n => n[0]).join('')}
+                                    {seafarer.name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")}
                                   </div>
                                   <div>
-                                    <div className="font-medium text-slate-900 dark:text-white">{seafarer.name}</div>
-                                    <div className="text-xs text-slate-500">ID: #{seafarer.id}</div>
-                                    <div className="text-xs text-slate-500">{seafarer.email}</div>
+                                    <div className="font-medium text-slate-900 dark:text-white">
+                                      {seafarer.name}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      ID: #{seafarer.id}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {seafarer.email}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
@@ -579,18 +675,22 @@ export default function AdminDashboardPage() {
                                 {seafarer.rank || "Not specified"}
                               </td>
                               <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
-                                {seafarer.years_of_experience ? `${seafarer.years_of_experience} years` : "Not specified"}
+                                {seafarer.years_of_experience
+                                  ? `${seafarer.years_of_experience} years`
+                                  : "Not specified"}
                               </td>
                               <td className="px-6 py-4">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  seafarer.status === "Approved"
-                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                    : seafarer.status === "Pending"
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                                    : seafarer.status === "Rejected"
-                                    ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                    : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
-                                }`}>
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    seafarer.status === "Approved"
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                      : seafarer.status === "Pending"
+                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                        : seafarer.status === "Rejected"
+                                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                          : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                  }`}
+                                >
                                   {seafarer.status}
                                 </span>
                               </td>
@@ -599,7 +699,9 @@ export default function AdminDashboardPage() {
                                   className="text-primary hover:text-primary-dark font-medium text-sm"
                                   onClick={(e) => {
                                     e.stopPropagation(); // Prevent row click when button is clicked
-                                    router.push(`/admin/seafarers/${seafarer.id}`);
+                                    router.push(
+                                      `/admin/seafarers/${seafarer.id}`,
+                                    );
                                   }}
                                 >
                                   Details
@@ -609,7 +711,10 @@ export default function AdminDashboardPage() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                            <td
+                              colSpan={5}
+                              className="px-6 py-8 text-center text-slate-500"
+                            >
                               No seafarers found.
                             </td>
                           </tr>
@@ -623,9 +728,13 @@ export default function AdminDashboardPage() {
               {/* Side Panel / Active Deployments (Takes 1 column) */}
               <div className="xl:col-span-1 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">Active Deployments</h2>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Active Deployments
+                  </h2>
                   <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                    <span className="material-symbols-outlined text-slate-400">more_horiz</span>
+                    <span className="material-symbols-outlined text-slate-400">
+                      more_horiz
+                    </span>
                   </button>
                 </div>
 
@@ -634,15 +743,22 @@ export default function AdminDashboardPage() {
                   <div className="h-48 w-full bg-slate-100 relative overflow-hidden group">
                     <div
                       className="absolute inset-0 bg-cover bg-center opacity-80"
-                      style={{ backgroundImage: "url('https://placeholder.pics/svg/300')" }}
+                      style={{
+                        backgroundImage:
+                          "url('https://placeholder.pics/svg/300')",
+                      }}
                     ></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="absolute bottom-3 left-4 text-white">
-                      <p className="text-xs font-medium opacity-80">Global Operations</p>
+                      <p className="text-xs font-medium opacity-80">
+                        Global Operations
+                      </p>
                       <p className="font-bold text-lg">12 Vessels Active</p>
                     </div>
                     <button className="absolute top-3 right-3 bg-white/90 text-slate-800 p-1.5 rounded-lg shadow-sm backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="material-symbols-outlined text-[18px]">open_in_full</span>
+                      <span className="material-symbols-outlined text-[18px]">
+                        open_in_full
+                      </span>
                     </button>
                   </div>
 
@@ -654,22 +770,30 @@ export default function AdminDashboardPage() {
                         className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                       >
                         <div className="size-10 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                          <span className="material-symbols-outlined">directions_boat</span>
+                          <span className="material-symbols-outlined">
+                            directions_boat
+                          </span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline mb-0.5">
-                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{deployment.vesselName}</h4>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              deployment.status === "En Route"
-                                ? "text-green-600 bg-green-100 dark:bg-green-900/30"
-                                : deployment.status === "Docked"
-                                ? "text-blue-600 bg-blue-100 dark:bg-blue-900/30"
-                                : "text-amber-600 bg-amber-100 dark:bg-amber-900/30"
-                            }`}>
+                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+                              {deployment.vesselName}
+                            </h4>
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                deployment.status === "En Route"
+                                  ? "text-green-600 bg-green-100 dark:bg-green-900/30"
+                                  : deployment.status === "Docked"
+                                    ? "text-blue-600 bg-blue-100 dark:bg-blue-900/30"
+                                    : "text-amber-600 bg-amber-100 dark:bg-amber-900/30"
+                              }`}
+                            >
                               {deployment.status}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 truncate">{deployment.location} • {deployment.crewCount} Crew</p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {deployment.location} • {deployment.crewCount} Crew
+                          </p>
                         </div>
                       </div>
                     ))}

@@ -236,25 +236,6 @@ export default function AdminContractsPage() {
         return;
       }
 
-      const allContractsPromise = fetch("/api/v1/admin/contracts", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            console.error(`Contracts API error: ${res.status}`);
-            return []; // Return empty array instead of throwing
-          }
-          const data = await res.json();
-          return Array.isArray(data) ? data : [];
-        })
-        .catch((error) => {
-          console.error("Error fetching all contracts:", error);
-          return []; // Return empty array on error
-        });
-
       const pendingContractsPromise = fetch("/api/v1/admin/contracts/pending", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -264,14 +245,14 @@ export default function AdminContractsPage() {
         .then(async (res) => {
           if (!res.ok) {
             console.error(`Pending Contracts API error: ${res.status}`);
-            return []; // Return empty array instead of throwing
+            return [];
           }
           const data = await res.json();
           return Array.isArray(data) ? data : [];
         })
         .catch((error) => {
           console.error("Error fetching pending contracts:", error);
-          return []; // Return empty array on error
+          return [];
         });
 
       const approvedContractsPromise = fetch(
@@ -286,14 +267,14 @@ export default function AdminContractsPage() {
         .then(async (res) => {
           if (!res.ok) {
             console.error(`Approved Contracts API error: ${res.status}`);
-            return []; // Return empty array instead of throwing
+            return [];
           }
           const data = await res.json();
           return Array.isArray(data) ? data : [];
         })
         .catch((error) => {
           console.error("Error fetching approved contracts:", error);
-          return []; // Return empty array on error
+          return [];
         });
 
       const rejectedContractsPromise = fetch(
@@ -308,30 +289,26 @@ export default function AdminContractsPage() {
         .then(async (res) => {
           if (!res.ok) {
             console.error(`Rejected Contracts API error: ${res.status}`);
-            return []; // Return empty array instead of throwing
+            return [];
           }
           const data = await res.json();
           return Array.isArray(data) ? data : [];
         })
         .catch((error) => {
           console.error("Error fetching rejected contracts:", error);
-          return []; // Return empty array on error
+          return [];
         });
 
       try {
-        const [allContracts, pendingData, approvedData, rejectedData] =
+        const [pendingData, approvedData, rejectedData] =
           await Promise.allSettled([
-            allContractsPromise,
             pendingContractsPromise,
             approvedContractsPromise,
             rejectedContractsPromise,
           ]);
 
-        setContracts(
-          allContracts.status === "fulfilled"
-            ? await transformPendingContracts(allContracts.value)
-            : [],
-        );
+        // Set all contract data
+        setContracts([]); // Set empty for now since allContracts is not available
         setPendingContracts(
           pendingData.status === "fulfilled"
             ? await transformPendingContracts(pendingData.value)
@@ -348,10 +325,11 @@ export default function AdminContractsPage() {
             : [],
         );
       } catch (error) {
-        // Individual promise errors handled above
         console.error("Failed to fetch contracts:", error);
         setContracts([]);
         setPendingContracts([]);
+        setApprovedContracts([]);
+        setRejectedContracts([]);
       }
     }
 
@@ -871,7 +849,7 @@ export default function AdminContractsPage() {
               onClick={handleLogout}
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-white dark:border-[#2a2e3b] shadow-sm ml-2 cursor-pointer"
               style={{
-                backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuBGoffDj5B9GBsDnJ_D_Rsfv1y7Lsuk8QkncvfM0uwUYvGiywaaG496AwfbMvJEuB29X5Orp3xQ_E61BfFaqTY8sYgYrHsJobUZrPn2TlpgB-TU6ijJajRGE3S7wcWGkz0GRpniNykO_iFj3YpPUlv9H8K6T4VusqJjFl9umRJlx6aciaCITfWiYtgJqPZEXlKIfu6ABIvoZxJpfDMog9QqFFKexwR7STZbBiPI-ykWmkU_idDAMUcsje1_6mFBcTka6cuPkenJsYDY")`,
+                backgroundImage: `url("https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36")`,
               }}
               title="Click to logout"
             ></button>
@@ -1171,7 +1149,7 @@ export default function AdminContractsPage() {
                           <div
                             className="bg-center bg-no-repeat bg-cover rounded-full size-8 shrink-0 bg-gray-200"
                             style={{
-                              backgroundImage: `url("${contract.seafarerAvatar}")`,
+                              backgroundImage: `url("https://ui-avatars.com/api/?name=${encodeURIComponent(contract.seafarerName)}&background=0D8ABC&color=fff&size=32")`,
                             }}
                           ></div>
                           <div className="flex flex-col">

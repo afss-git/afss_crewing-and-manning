@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("Fetching profile with auth:", authHeader);
+
     const response = await fetch(`${API_BASE_URL}/seafarers/profile`, {
       method: "GET",
       headers: {
@@ -30,6 +32,12 @@ export async function GET(request: NextRequest) {
     } catch {
       data = { detail: text || "Unknown response from server" };
     }
+
+    console.log("Profile fetch response:", {
+      status: response.status,
+      data: data,
+      hasProfilePhoto: !!(data?.profile_photo_url)
+    });
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {

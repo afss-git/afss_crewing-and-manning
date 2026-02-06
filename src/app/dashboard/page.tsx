@@ -107,8 +107,7 @@ export default function DashboardPage() {
               <div
                 className="h-10 w-10 rounded-full bg-gray-200 bg-cover bg-center border-2 border-white dark:border-gray-700 shadow-sm"
                 style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBnSQAbhU6fPjgHU54lK39r8av1GbzRqWp_weWXt1Rfptne7mEvWfUosF-YzxzCMqOPAlT_D9riYPe4EAJ-ltcuE3EuffjEuj18VmB-NUNEAmrHf5YAsARVGuA20haktGPw8d7M4abXcw2BKgW-ArztX0zz--RI7dPnatV9bEGY9YijUULPVZ_sAo4WzdKSTeAU2WuH2Wk2WdkgPB19sYWpNOWSllY7N128A22cexc_QkuyIEG_uX5P8jL_BjlyKg2bB6XIfJHqxfNS')",
+                  backgroundImage: "url('/images/default-user-avatar.jpg')",
                 }}
                 data-alt="Profile picture of Captain"
               ></div>
@@ -221,8 +220,7 @@ export default function DashboardPage() {
                 <div
                   className="h-32 bg-cover bg-center relative"
                   style={{
-                    backgroundImage:
-                      "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCH37CPsEnfZ0px5lKes-whha7qdNHwSZWmIjmJ1FS7Av5D-S-j0b9rPs3CBuXo4xCNeDXxKB2jXuE1B1HIlTHdF-1spEBcBIv9iypHdJAp6YZLP6nF_Pf3gA5H1JuaWqv2OoxWYJTIZddG58xSuC0Qo2Rcfawxk-yvejfMsapfb9XJ2xXeGE61q4cIIKDDWe71Q0v3WdNEEshwYapNCXAPbBB_j-0JicN-kMyA0-JfJsM5bUfQQaY7Zvw2qWfZJRPqZSH8zhJ49IJy')",
+                    backgroundImage: "url('/images/default-user-avatar.jpg')",
                   }}
                   data-alt="Ship deck view with ocean background"
                 >
@@ -492,7 +490,7 @@ export default function DashboardPage() {
                           className="h-6 w-6 rounded-full bg-gray-200 bg-cover bg-center"
                           style={{
                             backgroundImage:
-                              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuC2IfU-j9IqkwQTCj0US25BMUNk2CqLKx9uRg79mYJB4bha438gllFE-9cL64z57F3bwZilkZ6bihKHleXLSvorY0NZYiQzxd3SFw0kHFq9tLJdWNGkqovnWw69Tyt8hoWF5t8terXR_h3UEqQUe5r_IQs17chkSpW2pk_XJAD-QtOj3pK78l-uRh3ysaqWIPEKMblMx1xoYlM4v92Xocic12jCpdXDe6ohLWfS-NZlZwXy5PLGSiSPUOU5ducmoLhicTalSx39wUtE')",
+                              "url('/images/default-user-avatar.jpg')",
                           }}
                         ></div>
                         <span className="text-xs text-gray-600 dark:text-gray-300">

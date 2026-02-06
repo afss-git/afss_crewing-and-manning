@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
@@ -60,12 +59,12 @@ export default function Home() {
       <section className="relative flex flex-col items-center justify-center w-full bg-background-light dark:bg-background-dark pt-8 pb-8">
         <div className="w-full max-w-[1440px] px-4 md:px-10 lg:px-20">
           <div className="relative w-full rounded-xl overflow-hidden min-h-[400px] md:min-h-[480px] lg:min-h-[520px] flex items-center justify-center">
-            <Image
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNrU1H6fw7drcarA6pQN7vgsQ-92GZtRxgksidhazN0j36oa0WPQ7QxXWB5OJZ2w78BR3dWZClMGeH-CLZtgwHg4NfTmSfCzIcgZA-e8fPYjJxZbkFqNnemnSthr16g1iM8mH7BypOYUpg28Q3qfR-7K3-5yt-aoa24tQdmD7kaMAhyFxlijsFWHhJh1jIoG8AjCbpW5Zqq90gXWI9dWpbqgFgbtvYqx9_lJvL6ozhncR_YwmrzaUx5DcTICUSqNLsWQ5Uv6K46fVj"
-              alt="Container ship in a busy port at dusk with cranes in background"
-              fill
-              className="object-cover z-0"
-              priority
+            <div
+              className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+              style={{
+                backgroundImage:
+                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBNrU1H6fw7drcarA6pQN7vgsQ-92GZtRxgksidhazN0j36oa0WPQ7QxXWB5OJZ2w78BR3dWZClMGeH-CLZtgwHg4NfTmSfCzIcgZA-e8fPYjJxZbkFqNnemnSthr16g1iM8mH7BypOYUpg28Q3qfR-7K3-5yt-aoa24tQdmD7kaMAhyFxlijsFWHhJh1jIoG8AjCbpW5Zqq90gXWI9dWpbqgFgbtvYqx9_lJvL6ozhncR_YwmrzaUx5DcTICUSqNLsWQ5Uv6K46fVj')",
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-[#211112cc] z-10" />
             <div className="relative z-20 flex flex-col gap-6 items-start max-w-2xl p-8">
@@ -222,11 +221,12 @@ export default function Home() {
       {/* Image Break */}
       <section className="w-full h-64 md:h-80 lg:h-96 relative overflow-hidden">
         <div className="absolute inset-0 bg-primary/40 z-10"></div>
-        <Image
-          fill
-          className="object-cover"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUtNCikXXf5pp4sQ-g_qxiOj_zI6Tz9y7SpoRAUlRI_8poz9vLrLI3iOr1JEi8vnv8K7WNlSwjEL27S7bXHwQlvGU-37Wx686OWoYhjOJNS00wnBCEoy-wJAWxg_NL_D3c1sAbjBfjlQSWks7EwSwNjcVENrYjPgnA4Hij5_fmGg2Q_6eDf6E_dIL-EbINpDnQsMLLiai9L3RKd6Nobp6x-VP_yFD1CyKo-S3Zzn694Dxk9d38LMiMMKM91Vpch48mPlx281aBTfAG"
-          alt="Captains bridge view overlooking bow of large cargo ship at sea"
+        <div
+          className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage:
+              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDUtNCikXXf5pp4sQ-g_qxiOj_zI6Tz9y7SpoRAUlRI_8poz9vLrLI3iOr1JEi8vnv8K7WNlSwjEL27S7bXHwQlvGU-37Wx686OWoYhjOJNS00wnBCEoy-wJAWxg_NL_D3c1sAbjBfjlQSWks7EwSwNjcVENrYjPgnA4Hij5_fmGg2Q_6eDf6E_dIL-EbINpDnQsMLLiai9L3RKd6Nobp6x-VP_yFD1CyKo-S3Zzn694Dxk9d38LMiMMKM91Vpch48mPlx281aBTfAG')",
+          }}
         />
         <div className="absolute inset-0 z-20 flex items-center justify-center">
           <div className="text-center px-4">
@@ -406,7 +406,10 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/60">
-            <p>© {new Date().getFullYear()} CrewManning Platform. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} CrewManning Platform. All rights
+              reserved.
+            </p>
             <div className="flex gap-6">
               <a className="hover:text-white" href="#">
                 Privacy Policy

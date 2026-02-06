@@ -90,7 +90,7 @@ export default function SeafarerRegistration() {
           if (Array.isArray(validationErrors) && validationErrors.length > 0) {
             setError(
               validationErrors[0].msg ||
-                "Validation error. Please check your input."
+                "Validation error. Please check your input.",
             );
           } else {
             setError("Validation error. Please check your input.");
@@ -200,21 +200,24 @@ export default function SeafarerRegistration() {
                   width={40}
                   height={40}
                   className="w-10 h-10 rounded-full border-2 border-primary"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9hxeqZ1LmmcIZhjvs-EzvJwr1MKz8un7gfi3rb_aRpZ5j-wYv99kWZ2r5kPj5tAu4xYulqh64wST6v_OlN9vkl---Ii0_OZcHf7vbU5ImnFYNzBx9eyMIzAFFaWQBXnl7CZpxExWcH7fRZ7LvKbu_C0Czp6Phu-7h42xnM2YMOjbTrTWfX6XymLd_emeg-b-MBgNPWBeT_iXT7WED5PdohTcrgvO5aUZsdiG3BE2rVmDYXlbHc_mNwcufSYOR6bZPVNOCtCTUpJTY"
+                  src="/images/default-seafarer-avatar.jpg"
+                  unoptimized
                 />
                 <Image
                   alt="Avatar of a crew member"
                   width={40}
                   height={40}
                   className="w-10 h-10 rounded-full border-2 border-primary"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJaBewCRd4uNbqWeE7ZORYn8bt5mizavRyqiH0qJWBpiV_wENDeiUapFVJLNRcZvbeYSsfyPdxLCZhFZrsvvUDCq8D2Le8Csh4OVmHyXvGvLN-u4Uh7T_N39gMwd14Mbbu6bbQbMZXYWRnAm3Dg3Bc6rx6nY3MiiiYKpsJYvQsn51CuU0ETOmn7ZeenfFwia-nPMpqLvCJalKrIzFW3nK2QYS5iN9Dm5PyJAVP7BSunAtQ9t5D9e2AzU4xMviHEUb82ZOLZN2jv_O1"
+                  src="/images/default-seafarer-avatar.jpg"
+                  unoptimized
                 />
                 <Image
                   alt="Avatar of a crew member"
                   width={40}
                   height={40}
                   className="w-10 h-10 rounded-full border-2 border-primary"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAX-KziAQ5nIzk3P19S4Z98cx9IyW4iDMSlclex-9xOLj6n26OiLtIonMOn8qTlag5IEsu68nlg1otoXIi0LYdSiLR1cO7pptiqEQTLCL0qtqFi6-Sjsp0Msa4IHO5r8I5zb7ONbp495290cLqFP_Z-DswhuHkIknWUvUNj2bT47sjCKzA2shGmkP5jY481FkmJ1uRCvTZnY0NzOMxi7AW1BH4c2RRstgIJNbUucJ8o2ZkfDUjWMvDRTl8DOuNAD1UJVh6hvQUoeIp4"
+                  src="/images/default-seafarer-avatar.jpg"
+                  unoptimized
                 />
               </div>
               <div className="flex items-center text-sm font-medium text-white">
@@ -357,15 +360,15 @@ export default function SeafarerRegistration() {
                       passwordStrength < 2
                         ? "text-red-500"
                         : passwordStrength < 4
-                        ? "text-yellow-600"
-                        : "text-green-600"
+                          ? "text-yellow-600"
+                          : "text-green-600"
                     }`}
                   >
                     {passwordStrength < 2
                       ? "Weak password"
                       : passwordStrength < 4
-                      ? "Medium strength"
-                      : "Strong password"}
+                        ? "Medium strength"
+                        : "Strong password"}
                   </p>
                 )}
               </label>

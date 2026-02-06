@@ -38,6 +38,40 @@ interface OneOffContract {
   candidates: Candidate[];
 }
 
+interface ContractResponse {
+  id: number;
+  contractId: string;
+  vesselName: string;
+  vesselImoNumber?: string | null;
+  position: string;
+  positionType: string;
+  startDate: string;
+  endDate: string;
+  duration: string;
+  requiredCertifications: string;
+  dayRate: string;
+  status: string;
+  clientName: string;
+  clientCompany?: string | null;
+  specificInstructions?: string | null;
+  shipOwner: {
+    companyName: string;
+    user: {
+      email: string;
+    };
+  };
+  positions: {
+    id: number;
+    contractId: number;
+    position: string;
+    specifications?: string | null;
+    assignedSeafarer?: number | null;
+    status: string;
+    assignedAt?: Date | null;
+    createdAt: Date;
+  }[];
+}
+
 export default function AdminOneOffCrewPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,21 +87,125 @@ export default function AdminOneOffCrewPage() {
 
   async function loadContracts() {
     try {
-      const res = await fetch("/api/v1/admin/one-off-contracts");
-      if (!res.ok) {
+      const token = localStorage.getItem("crew-manning-token");
+      console.log("Token found:", !!token);
+      if (!token) return;
+
+      const response = await fetch("/api/v1/admin/contracts", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("Response status:", response.status);
+      if (!response.ok) {
+        console.error(`Failed to fetch contracts: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
         setContracts([]);
         return;
       }
-      const data = (await res.json()) as OneOffContract[];
-      const list = Array.isArray(data) ? data : [];
-      setContracts(list);
-      if (list.length > 0) {
-        setSelectedContract((prev) => prev ?? list[0]);
-        if (list[0].candidates.length > 0) {
-          setSelectedCandidate((prev) => prev ?? list[0].candidates[0].id);
-        }
+
+      const contractsData = await response.json();
+      console.log("Raw contracts data:", contractsData);
+
+      // Transform API data to UI format
+      const transformedContracts: OneOffContract[] = (
+        contractsData as ContractResponse[]
+      ).map((contract: ContractResponse) => ({
+        id: contract.id.toString(),
+        contractId: contract.contractId || `CONTRACT-${contract.id}`,
+        client:
+          contract.clientName ||
+          contract.shipOwner?.companyName ||
+          "Unknown Client",
+        position: contract.position || "Unknown Position",
+        positionType:
+          (contract.positionType as
+            | "urgent"
+            | "medical"
+            | "scheduled"
+            | "spot") || "scheduled",
+        vessel: contract.vesselName || "Unknown Vessel",
+        vesselImage: "/images/vessel-placeholder.jpg",
+        startDate: contract.startDate
+          ? new Date(contract.startDate).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        endDate: contract.endDate
+          ? new Date(contract.endDate).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        duration: contract.duration || "TBD",
+        status:
+          (contract.status as
+            | "open"
+            | "reviewing"
+            | "assigned"
+            | "completed"
+            | "cancelled") || "open",
+        requiredCerts:
+          contract.requiredCertifications || "Standard maritime certificates",
+        dayRate: contract.dayRate || "TBD",
+        candidates: [
+          // Mock candidates for demonstration - in production this would come from a separate API
+          {
+            id: `candidate-${contract.id}-1`,
+            name: "Captain James Wilson",
+            role: contract.position || "Maritime Officer",
+            experience: "15 years experience",
+            avatar: "/images/avatar-placeholder.jpg",
+            status: "available" as const,
+            location: "Rotterdam, Netherlands",
+            matchScore: 95,
+            matchDetails: {
+              experience: true,
+              certifications: true,
+              availability: true,
+              visa: true,
+            },
+          },
+          {
+            id: `candidate-${contract.id}-2`,
+            name: "Engineer Sarah Chen",
+            role: contract.position || "Maritime Officer",
+            experience: "8 years experience",
+            avatar: "/images/avatar-placeholder.jpg",
+            status: "available" as const,
+            location: "Singapore",
+            matchScore: 87,
+            matchDetails: {
+              experience: true,
+              certifications: true,
+              availability: true,
+              visa: false,
+            },
+          },
+          {
+            id: `candidate-${contract.id}-3`,
+            name: "Officer Mike Rodriguez",
+            role: contract.position || "Maritime Officer",
+            experience: "12 years experience",
+            avatar: "/images/avatar-placeholder.jpg",
+            status: "on-contract" as const,
+            location: "Miami, USA",
+            matchScore: 78,
+            matchDetails: {
+              experience: true,
+              certifications: false,
+              availability: false,
+              visa: true,
+            },
+          },
+        ], // Will be populated from matching algorithm in production
+      }));
+
+      console.log("Transformed contracts:", transformedContracts);
+      setContracts(transformedContracts);
+      if (transformedContracts.length > 0) {
+        setSelectedContract(transformedContracts[0]);
+        // Candidates would be fetched separately for matching
       }
-    } catch {
+    } catch (error) {
+      console.error("Load contracts error:", error);
       setContracts([]);
     }
   }
@@ -86,10 +224,16 @@ export default function AdminOneOffCrewPage() {
   // Filter contracts
   const filteredContracts = contracts.filter((contract) => {
     const matchesSearch =
-      contract.contractId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.vessel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.client.toLowerCase().includes(searchQuery.toLowerCase());
+      (contract.contractId || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (contract.vessel || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (contract.position || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      (contract.client || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter =
       activeFilter === "all" ||
       (activeFilter === "pending" &&
@@ -334,7 +478,7 @@ export default function AdminOneOffCrewPage() {
               onClick={handleLogout}
               className="h-9 w-9 bg-center bg-no-repeat bg-cover rounded-full ring-2 ring-white dark:ring-gray-800 shadow-sm cursor-pointer"
               style={{
-                backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpil0_WWVLxw1boPz22vYb9wmAZmO3aHZi2R2YogmsoEqf43Ag5Rtf2-BR_RFHkQF7RU4XGikliw2TfN1eozwIDzGIGDlY36OyEkGc6BMBkrWR-uYXAkJX1aNaveZHRqmQGnHsYGClq-9BMs5GapXgonx-d_Y6Uly5QEvRY8e6ej-H01_0tMe4Wyt0f3qEKlcDR5sXjiHOLV5ktcgNquyMpleZdHRmoD1mSZfA-mMcfE5e2Vpb1YAdSSImQRYwlLCLsdsKh17JBRnU")`,
+                backgroundImage: `url("https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36")`,
               }}
               title="Click to logout"
             ></button>
@@ -452,12 +596,6 @@ export default function AdminOneOffCrewPage() {
             <div className="flex items-end gap-3">
               <span className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.assignedSeafarers}
-              </span>
-              <span className="text-green-600 text-sm font-medium mb-1 flex items-center bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                <span className="material-symbols-outlined text-[14px] mr-1">
-                  trending_up
-                </span>{" "}
-                +5 today
               </span>
             </div>
           </div>

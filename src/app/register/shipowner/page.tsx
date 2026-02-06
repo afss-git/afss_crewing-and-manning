@@ -208,7 +208,8 @@ export default function ShipOwnerRegisterPage() {
           {/* Copyright */}
           <div className="text-center md:text-left pt-6">
             <p className="text-xs text-[#9aa2b1]">
-              © {new Date().getFullYear()} Maritime Ops Platform. All rights reserved.
+              © {new Date().getFullYear()} Maritime Ops Platform. All rights
+              reserved.
             </p>
           </div>
         </div>

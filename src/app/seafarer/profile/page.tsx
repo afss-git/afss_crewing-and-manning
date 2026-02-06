@@ -4,6 +4,21 @@ import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+// Helper function to get profile image URL
+const getProfileImageUrl = (profilePhotoUrl: string | null) => {
+  if (!profilePhotoUrl) {
+    return null; // Will use fallback
+  }
+
+  // If it's already a full URL, use it
+  if (profilePhotoUrl.startsWith("http")) {
+    return profilePhotoUrl;
+  }
+
+  // If it's just a filename/path, construct the public R2 URL
+  return `https://pub-27c3417763044ae78c1b2975fa3cfdea.r2.dev/${profilePhotoUrl}`;
+};
+
 export default function SeafarerProfilePage() {
   const { logout, user, profile, isProfileLoading, fetchProfile, isHydrated } =
     useAuth();
@@ -37,17 +52,36 @@ export default function SeafarerProfilePage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // State for tracking redirect
+  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
+
   // Fetch profile on mount
   useEffect(() => {
     if (
       isHydrated &&
       user?.role === "seafarer" &&
       !profile &&
-      !isProfileLoading
+      !isProfileLoading &&
+      !hasCheckedProfile
     ) {
-      fetchProfile();
+      setHasCheckedProfile(true);
+      fetchProfile().then((result) => {
+        if (!result.success && result.status === 404) {
+          // Profile doesn't exist, redirect to profile creation
+          console.log("No profile found, redirecting to profile creation");
+          router.push("/profile/create");
+        }
+      });
     }
-  }, [isHydrated, user, profile, isProfileLoading, fetchProfile]);
+  }, [
+    isHydrated,
+    user,
+    profile,
+    isProfileLoading,
+    hasCheckedProfile,
+    fetchProfile,
+    router,
+  ]);
 
   // Populate form when profile is loaded
   useEffect(() => {
@@ -66,14 +100,14 @@ export default function SeafarerProfilePage() {
         experience: profile.years_of_experience?.toString() || "",
       });
       if (profile.profile_photo_url) {
-        setPhotoPreview(profile.profile_photo_url);
+        setPhotoPreview(getProfileImageUrl(profile.profile_photo_url));
       }
     }
   }, [profile]);
 
   // Handle input changes
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { id, value } = e.target;
     setForm((prev) => ({ ...prev, [id]: value }));
@@ -141,7 +175,7 @@ export default function SeafarerProfilePage() {
         formData.append("years_of_experience", form.experience);
       if (profilePhoto) formData.append("profile_photo", profilePhoto);
 
-      const response = await fetch("/api/seafarer/profile/create", {
+      const response = await fetch("/api/v1/seafarers/profile", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -207,7 +241,8 @@ export default function SeafarerProfilePage() {
       const formData = new FormData();
       formData.append("profile_photo", file);
 
-      const response = await fetch("/api/seafarer/profile/photo", {
+      // Use the dedicated photo endpoint instead of the general profile endpoint
+      const response = await fetch("/api/v1/seafarers/profile/photo", {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -219,15 +254,32 @@ export default function SeafarerProfilePage() {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error("Photo upload failed:", data);
         setError(data.detail || "Failed to update photo.");
         return;
       }
 
+      console.log("Photo upload response data:", data);
+
       // Success - update local state and storage
-      setPhotoPreview(data.profile_photo_url);
-      localStorage.setItem("crew-manning-profile", JSON.stringify(data));
+      // For photo-only updates, we need to get the updated profile data
+      // since the photo endpoint might not return full profile data
+      console.log("Refreshing profile after photo upload...");
+      await fetchProfile(); // Refresh profile data which includes the photo
+
+      // Update local preview with the current photo URL
+      if (data.profile_photo_url) {
+        setPhotoPreview(getProfileImageUrl(data.profile_photo_url));
+        console.log("Setting photo preview to:", getProfileImageUrl(data.profile_photo_url));
+        // Update local storage with photo URL if returned
+        const currentProfile = JSON.parse(localStorage.getItem("crew-manning-profile") || "{}");
+        const updatedProfile = { ...currentProfile, profile_photo_url: data.profile_photo_url };
+        localStorage.setItem("crew-manning-profile", JSON.stringify(updatedProfile));
+      } else {
+        console.log("No profile_photo_url in response, waiting for fetchProfile to update...");
+      }
+
       setSuccess("Profile photo updated!");
-      fetchProfile(); // Refresh profile data
     } catch (err) {
       console.error("Photo upload error:", err);
       setError("Network error. Please try again.");
@@ -245,7 +297,11 @@ export default function SeafarerProfilePage() {
   };
 
   // Loading state
-  if (!isHydrated || isProfileLoading) {
+  if (
+    !isHydrated ||
+    isProfileLoading ||
+    (user?.role === "seafarer" && !profile && !hasCheckedProfile)
+  ) {
     return (
       <div className="bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -291,9 +347,9 @@ export default function SeafarerProfilePage() {
     : user?.name || "Seafarer";
   const profilePhotoUrl =
     photoPreview ||
-    profile?.profile_photo_url ||
+    getProfileImageUrl(profile?.profile_photo_url || null) ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      displayName
+      displayName,
     )}&background=701012&color=fff&size=200`;
 
   return (
@@ -414,7 +470,9 @@ export default function SeafarerProfilePage() {
                         experience:
                           profile.years_of_experience?.toString() || "",
                       });
-                      setPhotoPreview(profile.profile_photo_url || null);
+                      setPhotoPreview(
+                        getProfileImageUrl(profile.profile_photo_url) || null,
+                      );
                       setProfilePhoto(null);
                     }
                   }}
@@ -662,7 +720,11 @@ export default function SeafarerProfilePage() {
                         {profile?.date_of_birth
                           ? new Date(profile.date_of_birth).toLocaleDateString(
                               "en-US",
-                              { year: "numeric", month: "long", day: "numeric" }
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              },
                             )
                           : "-"}
                       </p>
@@ -832,29 +894,27 @@ export default function SeafarerProfilePage() {
                       Rank / Position
                     </label>
                     {isEditing ? (
-                      <select
-                        id="rank"
-                        value={form.rank}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                        required
-                      >
-                        <option value="">Select Rank</option>
-                        <optgroup label="Deck Department">
-                          <option value="master">Master / Captain</option>
+                        <select
+                          id="rank"
+                          value={form.rank}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                          required
+                        >
+                          <option value="">Select Rank</option>
+                          <option value="captain">Captain</option>
                           <option value="chief_officer">Chief Officer</option>
-                          <option value="second_officer">2nd Officer</option>
-                          <option value="third_officer">3rd Officer</option>
-                          <option value="deck_cadet">Deck Cadet</option>
-                        </optgroup>
-                        <optgroup label="Engine Department">
+                          <option value="second_officer">Second Officer</option>
+                          <option value="third_officer">Third Officer</option>
                           <option value="chief_engineer">Chief Engineer</option>
-                          <option value="second_engineer">2nd Engineer</option>
-                          <option value="third_engineer">3rd Engineer</option>
-                          <option value="oiler">Oiler</option>
-                          <option value="wiper">Wiper</option>
-                        </optgroup>
-                      </select>
+                          <option value="second_engineer">Second Engineer</option>
+                          <option value="electrician">Electrician</option>
+                          <option value="bosun">Bosun</option>
+                          <option value="able_seaman">Able Seaman</option>
+                          <option value="ordinary_seaman">Ordinary Seaman</option>
+                          <option value="cook">Cook</option>
+                          <option value="other">Other</option>
+                        </select>
                     ) : (
                       <p className="text-gray-900 dark:text-white font-medium capitalize">
                         {profile?.rank?.replace(/_/g, " ") || "-"}

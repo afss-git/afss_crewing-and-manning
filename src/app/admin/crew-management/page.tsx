@@ -113,7 +113,9 @@ export default function AdminCrewManagementPage() {
         });
 
         if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+          console.error(`API error: ${response.status}`);
+          setCrewManagementRequests([]);
+          return;
         }
 
         const data: CrewManagementApi[] = await response.json();
@@ -298,14 +300,18 @@ export default function AdminCrewManagementPage() {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to approve request`);
+        console.error(`Failed to approve request: ${response.status}`);
+        alert("Failed to approve request. Please try again.");
+        return;
       }
 
       // Close modal
       setShowModal(false);
 
       // Refresh the contract data or show success message
-      alert(`${selectedContract.vesselName} has been approved successfully!`);
+      if (selectedContract?.vesselName) {
+        alert(`${selectedContract.vesselName} has been approved successfully!`);
+      }
 
       // Refresh the contracts list to show updated status
       window.location.reload();
@@ -346,14 +352,18 @@ export default function AdminCrewManagementPage() {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to reject request`);
+        console.error(`Failed to reject request: ${response.status}`);
+        alert("Failed to reject request. Please try again.");
+        return;
       }
 
       // Close modal
       setShowModal(false);
 
       // Refresh the contract data or show success message
-      alert(`${selectedContract.vesselName} has been rejected successfully.`);
+      if (selectedContract) {
+        alert(`${selectedContract.vesselName} has been rejected successfully.`);
+      }
 
       // Refresh the contracts list to show updated status
       window.location.reload();
@@ -516,7 +526,7 @@ export default function AdminCrewManagementPage() {
               onClick={handleLogout}
               className="h-9 w-9 bg-center bg-no-repeat bg-cover rounded-full ring-2 ring-white dark:ring-gray-800 shadow-sm cursor-pointer"
               style={{
-                backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpil0_WWVLxw1boPz22vYb9wmAZmO3aHZi2R2YogmsoEqf43Ag5Rtf2-BR_RFHkQF7RU4XGikliw2TfN1eozwIDzGIGDlY36OyEkGc6BMBkrWR-uYXAkJX1aNaveZHRqmQGnHsYGClq-9BMs5GapXgonx-d_Y6Uly5QEvRY8e6ej-H01_0tMe4Wyt0f3qEKlcDR5sXjiHOLV5ktcgNquyMpleZdHRmoD1mSZfA-mMcfE5e2Vpb1YAdSSImQRYwlLCLsdsKh17JBRnU")`,
+                backgroundImage: `url("https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36")`,
               }}
               title="Click to logout"
             ></button>

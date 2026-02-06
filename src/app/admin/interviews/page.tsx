@@ -20,6 +20,14 @@ interface Interview {
   department: "deck" | "engine" | "galley";
 }
 
+interface MeetingNotification {
+  meeting_link: string;
+  meeting_time: string;
+  meeting_location: string;
+  description: string;
+  recipient_emails: string[];
+}
+
 export default function AdminInterviewsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,6 +35,15 @@ export default function AdminInterviewsPage() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [sendingNotification, setSendingNotification] = useState(false);
+  const [meetingForm, setMeetingForm] = useState<MeetingNotification>({
+    meeting_link: "",
+    meeting_time: "",
+    meeting_location: "",
+    description: "",
+    recipient_emails: [],
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -53,7 +70,7 @@ export default function AdminInterviewsPage() {
         .includes(searchQuery.toLowerCase()) ||
       interview.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
       interview.interviewers.some((i) =>
-        i.toLowerCase().includes(searchQuery.toLowerCase())
+        i.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     const matchesStatus = !statusFilter || interview.status === statusFilter;
     const matchesDepartment =
@@ -79,6 +96,59 @@ export default function AdminInterviewsPage() {
 
   const handleCreateInterview = () => {
     alert("Opening create interview modal...");
+  };
+
+  const handleSendMeetingNotification = async () => {
+    if (
+      !meetingForm.meeting_link ||
+      !meetingForm.meeting_time ||
+      !meetingForm.description
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    setSendingNotification(true);
+    try {
+      const token = localStorage.getItem("crew-manning-token");
+      if (!token) {
+        alert("Please log in again");
+        return;
+      }
+
+      const response = await fetch("/api/v1/admin/meetings/notify-seafarers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(meetingForm),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      alert(
+        `Meeting notification sent! Success: ${result.success_count}, Failed: ${result.failed_count}`,
+      );
+
+      // Reset form and close modal
+      setMeetingForm({
+        meeting_link: "",
+        meeting_time: "",
+        meeting_location: "",
+        description: "",
+        recipient_emails: [],
+      });
+      setShowMeetingModal(false);
+    } catch (error) {
+      console.error("Failed to send meeting notification:", error);
+      alert("Failed to send meeting notification. Please try again.");
+    } finally {
+      setSendingNotification(false);
+    }
   };
 
   const handleInterviewAction = (interview: Interview) => {
@@ -240,7 +310,7 @@ export default function AdminInterviewsPage() {
                   onClick={handleLogout}
                   className="size-9 rounded-full bg-cover bg-center border border-[#e5e7eb] cursor-pointer"
                   style={{
-                    backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuCVx7bpYxBWA_EcRFCfCAWwOKn5thOmEG4ptgVaLipAeXDABkw21OWktI26ZzYimNRQez_FOL6UEwC1eAfEBY-2XKhPShJTueUM8Ils3oLWKXWC15orD-nYawfBGk816J10-Wn7d9xOWEilpp6Pjuuo0BwqfCC-5YWHWc-3bsovya41N7K4D-wMET7vgV3_Tdd3ipQpf-pxK54Cryjzj0ZhQi8uPmPBerLIOzrzRl9kU7ObOsCef4If9ZUxejqNaXpHVWLm4grjzTo1")`,
+                    backgroundImage: `url("/images/default-admin-avatar.jpg")`,
                   }}
                   title="Click to logout"
                 ></button>
@@ -262,13 +332,22 @@ export default function AdminInterviewsPage() {
               Manage schedules, feedback, and candidate statuses.
             </p>
           </div>
-          <button
-            onClick={handleCreateInterview}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm hover:shadow-md"
-          >
-            <span className="material-symbols-outlined">add</span>
-            <span>Create Interview</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowMeetingModal(true)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm hover:shadow-md"
+            >
+              <span className="material-symbols-outlined">send</span>
+              <span>Send Meeting Notification</span>
+            </button>
+            <button
+              onClick={handleCreateInterview}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm hover:shadow-md"
+            >
+              <span className="material-symbols-outlined">add</span>
+              <span>Create Interview</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -564,6 +643,140 @@ export default function AdminInterviewsPage() {
           </div>
         </div>
       </main>
+
+      {/* Meeting Notification Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Send Meeting Notification
+              </h3>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Meeting Link *
+                </label>
+                <input
+                  type="url"
+                  value={meetingForm.meeting_link}
+                  onChange={(e) =>
+                    setMeetingForm({
+                      ...meetingForm,
+                      meeting_link: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://zoom.us/j/..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Meeting Time *
+                </label>
+                <input
+                  type="datetime-local"
+                  value={meetingForm.meeting_time}
+                  onChange={(e) =>
+                    setMeetingForm({
+                      ...meetingForm,
+                      meeting_time: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Meeting Location
+                </label>
+                <input
+                  type="text"
+                  value={meetingForm.meeting_location}
+                  onChange={(e) =>
+                    setMeetingForm({
+                      ...meetingForm,
+                      meeting_location: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Virtual/Office Address"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Description *
+                </label>
+                <textarea
+                  value={meetingForm.description}
+                  onChange={(e) =>
+                    setMeetingForm({
+                      ...meetingForm,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Meeting agenda and details"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Recipient Emails (optional)
+                </label>
+                <textarea
+                  value={meetingForm.recipient_emails.join("\n")}
+                  onChange={(e) =>
+                    setMeetingForm({
+                      ...meetingForm,
+                      recipient_emails: e.target.value
+                        .split("\n")
+                        .filter((email) => email.trim()),
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Leave empty to send to all seafarers\nOr enter one email per line"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                disabled={sendingNotification}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendMeetingNotification}
+                disabled={sendingNotification}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                {sendingNotification && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                )}
+                <span>
+                  {sendingNotification ? "Sending..." : "Send Notification"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

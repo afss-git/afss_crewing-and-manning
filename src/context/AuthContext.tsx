@@ -27,6 +27,7 @@ export interface SeafarerProfile {
   rank: string;
   years_of_experience: number;
   profile_photo_url: string | null;
+  application_status?: string;
 }
 
 interface User {
@@ -48,7 +49,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
-  fetchProfile: () => Promise<void>;
+  fetchProfile: () => Promise<{ success: boolean; status?: number }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,7 +58,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Helper function to decode JWT and extract role
 function decodeJWT(
-  token: string
+  token: string,
 ): { sub: string; role: string; exp: number } | null {
   try {
     const base64Url = token.split(".")[1];
@@ -66,7 +67,7 @@ function decodeJWT(
       atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
+        .join(""),
     );
     return JSON.parse(jsonPayload);
   } catch {
@@ -108,13 +109,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Fetch seafarer profile from API
-  const fetchProfile = async () => {
+  const fetchProfile = async (): Promise<{
+    success: boolean;
+    status?: number;
+  }> => {
     const token = localStorage.getItem("crew-manning-token");
-    if (!token) return;
+    if (!token) {
+      console.log("No token found, cannot fetch profile");
+      return { success: false, status: 401 };
+    }
+
+    // Validate token is not expired
+    const decodedToken = decodeJWT(token);
+    if (!decodedToken || decodedToken.exp * 1000 < Date.now()) {
+      console.log("Token expired, cannot fetch profile");
+      localStorage.removeItem("crew-manning-token");
+      localStorage.removeItem("crew-manning-user");
+      return { success: false, status: 401 };
+    }
 
     setIsProfileLoading(true);
     try {
-      const response = await fetch("/api/seafarer/profile", {
+      const response = await fetch("/api/v1/seafarers/profile", {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -127,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData);
         localStorage.setItem(
           "crew-manning-profile",
-          JSON.stringify(profileData)
+          JSON.stringify(profileData),
         );
 
         // Update user name and avatar from profile
@@ -141,24 +157,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(updatedUser);
           localStorage.setItem(
             "crew-manning-user",
-            JSON.stringify(updatedUser)
+            JSON.stringify(updatedUser),
           );
         }
+        return { success: true, status: response.status };
+      } else {
+        console.log(`Profile fetch failed with status: ${response.status}`);
+        return { success: false, status: response.status };
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error);
+      return { success: false };
     } finally {
       setIsProfileLoading(false);
     }
   };
 
-  // Fetch profile on mount if user is logged in as seafarer
-  useEffect(() => {
-    if (user?.role === "seafarer" && user.accessToken && !profile) {
-      fetchProfile();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.accessToken]);
+  // Note: Removed automatic profile fetching from AuthContext to prevent loops
+  // Profile will be fetched explicitly when needed by components
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -232,6 +248,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Redirect based on role
       if (apiUser.role === "shipowner") {
         router.push("/shipowner/contract-type");
+      } else if (apiUser.role === "seafarer") {
+        // Check if seafarer has a profile before allowing dashboard access
+        try {
+          const profileResponse = await fetch("/api/v1/seafarers/profile", {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${access_token}`,
+            },
+          });
+
+          if (profileResponse.ok) {
+            // Profile exists, proceed to dashboard
+            router.push(`/${apiUser.role}/dashboard`);
+          } else if (profileResponse.status === 404) {
+            // No profile found, redirect to profile creation
+            router.push("/profile/create");
+          } else {
+            // Other error occurred, still redirect to profile creation to be safe
+            router.push("/profile/create");
+          }
+        } catch (error) {
+          console.error("Error checking seafarer profile:", error);
+          // On network error, redirect to profile creation to ensure completion
+          router.push("/profile/create");
+        }
       } else {
         router.push(`/${apiUser.role}/dashboard`);
       }

@@ -5,23 +5,42 @@ const API_BASE_URL = "https://crewing-mvp.onrender.com/api/v1";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const { email, code } = body;
 
-    // Log what we're sending
-    console.log("Verify-email request body:", body);
+    // Validate required fields
+    if (!email || !code) {
+      return NextResponse.json(
+        { detail: "Email and verification code are required" },
+        { status: 400 },
+      );
+    }
+
+    // Get external API token
+    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
+    if (!externalApiToken) {
+      console.error("EXTERNAL_API_TOKEN not configured");
+      return NextResponse.json(
+        { detail: "Server configuration error" },
+        { status: 500 },
+      );
+    }
+
+    console.log("Verify-email request:", {
+      email,
+      code: code.length + " digits",
+    });
 
     const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        Authorization: `Bearer ${externalApiToken}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ email, code }),
     });
 
-    // Try to parse response as JSON
     const text = await response.text();
-
-    // Log the raw response
     console.log("Verify-email response:", {
       status: response.status,
       body: text,
@@ -31,7 +50,7 @@ export async function POST(request: NextRequest) {
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
-      data = { detail: text || "Unknown response from server" };
+      data = { detail: text || "Invalid response from server" };
     }
 
     return NextResponse.json(data, { status: response.status });
@@ -39,7 +58,7 @@ export async function POST(request: NextRequest) {
     console.error("Verification proxy error:", error);
     return NextResponse.json(
       { detail: "Failed to connect to the verification server." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

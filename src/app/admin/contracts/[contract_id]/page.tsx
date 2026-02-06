@@ -49,7 +49,7 @@ function AdminContractDetailPage() {
 
     try {
       const formData = new FormData();
-      selectedFiles.forEach((file, index) => {
+      selectedFiles.forEach((file) => {
         formData.append("files", file);
       });
 
@@ -68,7 +68,7 @@ function AdminContractDetailPage() {
         throw new Error(`Upload failed: ${response.status}`);
       }
 
-      const result = await response.json();
+      await response.json();
       alert("Documents uploaded successfully!");
       setSelectedFiles([]); // Clear selected files
 
@@ -240,7 +240,7 @@ function AdminContractDetailPage() {
             onClick={handleLogout}
             className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-white dark:border-[#2a2e3b] shadow-sm ml-2 cursor-pointer"
             style={{
-              backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuBGoffDj5B9GBsDnJ_D_Rsfv1y7Lsuk8QkncvfM0uwUYvGiywaaG496AwfbMvJEuB29X5Orp3xQ_E61BfFaqTY8sYgYrHsJobUZrPn2TlpgB-TU6ijJajRGE3S7wcWGkz0GRpniNykO_iFj3YpPUlv9H8K6T4VusqJjFl9umRJlx6aciaCITfWiYtgJqPZEXlKIfu6ABIvoZxJpfDMog9QqFFKexwR7STZbBiPI-ykWmkU_idDAMUcsje1_6mFBcTka6cuPkenJsYDY")`,
+              backgroundImage: `url("https://ui-avatars.com/api/?name=Admin&background=1F2937&color=fff&size=36")`,
             }}
             title="Click to logout"
           ></button>

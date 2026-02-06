@@ -1036,18 +1036,15 @@ export default function DocumentsPage() {
                         </div>
                         <div className="mt-3 flex gap-2">
                           <button
-                            onClick={async () => {
-                              setIsLoadingPreview(true);
-                              const latestDoc = await fetchDocumentById(doc.id);
-                              setPreviewDocument(latestDoc || doc);
+                            onClick={() => {
+                              setPreviewDocument(doc);
                             }}
                             className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                            disabled={isLoadingPreview}
                           >
                             <span className="material-symbols-outlined text-[16px]">
-                              {isLoadingPreview ? "sync" : "visibility"}
+                              visibility
                             </span>
-                            {isLoadingPreview ? "Loading..." : "View"}
+                            View
                           </button>
                           <button
                             onClick={() => {

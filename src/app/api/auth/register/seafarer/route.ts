@@ -3,53 +3,100 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, firstName, lastName } = body;
+    const { email, password } = body;
 
-    // For now, skip password since User model doesn't have auth fields
-    // We'll focus on creating the user record for admin management
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
+    // Validate required fields
+    if (!email || !password) {
       return NextResponse.json(
-        { detail: "User with this email already exists" },
-        { status: 400 }
+        { detail: "Email and password are required" },
+        { status: 400 },
       );
     }
 
-    // Create user in local database (without password for now)
-    const user = await prisma.user.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        approved: false, // Require admin approval
-      },
-    });
+    // Get external API token
+    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
+    if (!externalApiToken) {
+      console.error("EXTERNAL_API_TOKEN not configured");
+      return NextResponse.json(
+        { detail: "Server configuration error" },
+        { status: 500 },
+      );
+    }
 
-    return NextResponse.json(
-      {
-        message: "Registration successful",
-        user_id: user.id,
-        email: user.email,
-        first_name: user.firstName,
-        last_name: user.lastName,
-      },
-      { status: 201 }
-    );
+    // Call external API for registration and email verification
+    try {
+      const externalResponse = await fetch(
+        "https://crewing-mvp.onrender.com/api/v1/auth/register/seafarer",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            // Note: Registration endpoint might not need Bearer token, but verification does
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        },
+      );
+
+      const externalData = await externalResponse.json();
+
+      console.log("External registration response:", {
+        status: externalResponse.status,
+        data: externalData,
+      });
+
+      if (!externalResponse.ok) {
+        // Return the exact error from the external API
+        return NextResponse.json(
+          { detail: externalData.detail || "Registration failed" },
+          { status: externalResponse.status },
+        );
+      }
+
+      // If external registration is successful, check and create local user record
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!existingUser) {
+        await prisma.user.create({
+          data: {
+            email,
+            approved: false, // Require admin approval after email verification
+          },
+        });
+      }
+
+      // Return the same response format as the external API
+      return NextResponse.json(
+        {
+          msg: externalData.msg || "Verification code sent to email",
+        },
+        { status: 201 },
+      );
+    } catch (externalError) {
+      console.error("External API error:", externalError);
+      return NextResponse.json(
+        {
+          detail:
+            "Failed to connect to registration service. Please try again.",
+        },
+        { status: 503 },
+      );
+    }
   } catch (error) {
-    console.error("Local registration error:", error);
+    console.error("Registration error:", error);
     return NextResponse.json(
-      { detail: "Failed to register user locally" },
-      { status: 500 }
+      { detail: "Internal server error" },
+      { status: 500 },
     );
   } finally {
     await prisma.$disconnect();

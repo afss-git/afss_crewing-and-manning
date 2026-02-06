@@ -95,8 +95,7 @@ export default function ContractsPage() {
               <div
                 className="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0"
                 style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBHSstHu3ySCe2R4o3FdOBapgFMb_lB6V65xcccXaRvBvPNF-INh0EKm4q3qNEiiflcCLKcfoBIMajJRNfYer5xT2_pr-qejpu3vUCihOTFp52y3OqQwDtyfeVxeqkKFClEhtOJrbVWbEyzXg0PlFGtTNX-yrA1IqBLCPylqP7k-uK7hKnC5ONDP7-YSzfyP0XrWzXC2GW959JYLe0iycEbUSY2c3mKFpjlYm3HM8MlzfCT05o2UpVkFXHapZPIBRp8I2A7zlAeQ7sV')",
+                  backgroundImage: "url('/images/default-user-avatar.jpg')",
                 }}
                 data-alt="Portrait of a smiling user"
               ></div>
@@ -357,7 +356,7 @@ export default function ContractsPage() {
                               className="size-10 rounded-full bg-cover bg-center shrink-0"
                               style={{
                                 backgroundImage:
-                                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDXUiV-S-Fat6IXi0f750tkEQGmwPe2ITrQVGT827ApCwyAIzVY3BDmetqsnk-F8Q6L3LMa5v_EoXFeTdSnuDcOzj8vB78VGgmpjTVGZsC8gCguWqRNUYsV7fPsVC7YPn4SvSPzQ22-2wQnntBoNs48mJGbDV5wsGt_o2VxigKXWU6yNviwv04w914_VTukJe3eXoXCS0Bowrg3HbBXAL-l4xgGEtznA_z70oVZ4wusbLlGn4fFSwXxDivHwpnBasKZaL382JHIfR-_')",
+                                  "url('/images/default-user-avatar.jpg')",
                               }}
                               data-alt="Portrait of John D."
                             ></div>
@@ -425,7 +424,7 @@ export default function ContractsPage() {
                               className="size-10 rounded-full bg-cover bg-center shrink-0"
                               style={{
                                 backgroundImage:
-                                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBHDPCx95drGmBjrzU11o_RiTrR134q-YDOuHF4-kmSadSvMbALhWZDEKjgi3uWQ7FWG1F62kzPpBV64fdTvHnsv3foWDxaWTAZjWEOBu4KbwD5oMRVfcEmNWguUzZm-kGvNfHLFbhjf-BBmS2lekh0TmF-rh49aE2jgV4iocruq7upHLR9Eg5kNHNMHBuFkAFPzud_YTpQNuBN1PZsZZBhqYSminfgS7e1RGAY7ypW0hWJd7XTJJbqinklL3AHVxOdxZ7lCQYipApy')",
+                                  "url('/images/default-user-avatar.jpg')",
                               }}
                               data-alt="Portrait of Sarah C."
                             ></div>
@@ -554,7 +553,7 @@ export default function ContractsPage() {
                               className="size-10 rounded-full bg-cover bg-center shrink-0"
                               style={{
                                 backgroundImage:
-                                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCqyq3Byzh9rMKND8e1aFlMrgajlawEF4h54l3hdlSKcHG0iBIy-uZWXbs8fE_ZbZZuCemVaToupAhs869e3DbCTz5wCHfMn71eLy4rvVlwSD7ac-D1Dxa4UvXLDRNfXJIp575FQ32wVXL9x9d_OsPdTg4Bq5d1UN1Y6dvvfgdg0ZVpX6NUOV2OkY8ZtIDHuKzKumSmSQbi_SnTbZ5JhiqlIzrPYnI_REpIzEVDrNmXvd60Y_GUkGfNzVRVRun2I1axHSgve5fZfxYr')",
+                                  "url('/images/default-user-avatar.jpg')",
                               }}
                               data-alt="Portrait of David R."
                             ></div>
@@ -622,7 +621,7 @@ export default function ContractsPage() {
                               className="size-10 rounded-full bg-cover bg-center shrink-0 grayscale"
                               style={{
                                 backgroundImage:
-                                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAKl9VchUnclbqq9flspuGTfAcJod-VFBYkMwT9eNbZCCzUUPucMaPG-nNb-U_f9ypu3yWmDXDl-bFhh1OOSHPeDB-u8zI87TZacauDMzx7w8V0Xu9DceWh98KrklGbY4yM82V7QFdEER5KPRAiDQlhydW4mDoaoyNUjQusO9C1SxSdRO_CvDSuEweDCl24grX7dXXkMV5s8QTmEgQc306_Gram8uTYEjNuo40iG7K9iSsIbgro_wjaLEgwFH_OXEzvl2iyzuc5TOsg')",
+                                  "url('/images/default-user-avatar.jpg')",
                               }}
                               data-alt="Portrait of Emily W."
                             ></div>
