@@ -4,6 +4,19 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 
+interface Document {
+  id: number;
+  doc_type: string;
+  custom_title: string | null;
+  file_name: string;
+  file_url: string;
+  file_size: number;
+  status: "pending" | "approved" | "rejected";
+  admin_notes: string | null;
+  verified_at: string | null;
+  created_at: string;
+}
+
 interface SeafarerProfile {
   user_id: number;
   email: string;
@@ -26,31 +39,20 @@ interface SeafarerProfile {
   documents: Document[];
 }
 
-interface Document {
-  id: number;
-  doc_type: string;
-  custom_title: string | null;
-  file_name: string;
-  file_url: string;
-  file_size: number;
-  status: "pending" | "approved" | "rejected";
-  admin_notes: string | null;
-  verified_at: string | null;
-  created_at: string;
-}
-
 export default function AdminSeafarerProfilePage() {
   const router = useRouter();
   const params = useParams();
-  const userId = params?.id as string;
+  const userId = params?.id as string | undefined;
 
   const [userProfile, setUserProfile] = useState<SeafarerProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   // Fetch user profile data
   const fetchUserProfile = useCallback(async () => {
+    if (!userId) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -61,26 +63,37 @@ export default function AdminSeafarerProfilePage() {
         return;
       }
 
-      // Fetch complete seafarer profile using the new admin endpoint
       const response = await fetch(
         `/api/v1/admin/seafarers/${userId}/profile`,
         {
           headers: {
+            Accept: "application/json",
             Authorization: `Bearer ${token}`,
           },
         },
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Seafarer not found");
+        // Try to parse any JSON error body returned by the API proxy
+        let errorBody: any = {};
+        try {
+          errorBody = await response.json();
+        } catch (e) {
+          // ignore parse errors
         }
-        throw new Error(`Failed to fetch seafarer profile: ${response.status}`);
+
+        if (response.status === 404) {
+          throw new Error(errorBody?.detail || "Seafarer not found");
+        }
+
+        const message =
+          errorBody?.detail || errorBody?.message ||
+          `Failed to fetch seafarer profile: ${response.status}`;
+
+        throw new Error(message);
       }
 
-      const seafarerData = await response.json();
-
-      // The new API returns data in the correct format, so we can use it directly
+      const seafarerData: SeafarerProfile = await response.json();
       setUserProfile(seafarerData);
     } catch (err) {
       console.error("Failed to fetch seafarer profile:", err);
@@ -108,6 +121,7 @@ export default function AdminSeafarerProfilePage() {
         {
           method: "POST",
           headers: {
+            Accept: "application/json",
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
@@ -115,10 +129,15 @@ export default function AdminSeafarerProfilePage() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to approve document");
+        let errBody: any = {};
+        try {
+          errBody = await response.json();
+        } catch {}
+
+        const msg = errBody?.detail || errBody?.message || `Failed to approve document: ${response.status}`;
+        throw new Error(msg);
       }
 
-      // Refresh user data
       await fetchUserProfile();
     } catch (err) {
       console.error("Failed to approve document:", err);
@@ -144,6 +163,7 @@ export default function AdminSeafarerProfilePage() {
         {
           method: "POST",
           headers: {
+            Accept: "application/json",
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
@@ -154,10 +174,15 @@ export default function AdminSeafarerProfilePage() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to reject document");
+        let errBody: any = {};
+        try {
+          errBody = await response.json();
+        } catch {}
+
+        const msg = errBody?.detail || errBody?.message || `Failed to reject document: ${response.status}`;
+        throw new Error(msg);
       }
 
-      // Refresh user data
       await fetchUserProfile();
     } catch (err) {
       console.error("Failed to reject document:", err);
@@ -174,7 +199,7 @@ export default function AdminSeafarerProfilePage() {
     router.push("/admin/login");
   };
 
-  // Check authentication
+  // Check authentication on mount
   useEffect(() => {
     const token = localStorage.getItem("crew-manning-token");
     if (!token) {
@@ -182,13 +207,12 @@ export default function AdminSeafarerProfilePage() {
     }
   }, [router]);
 
-  // Fetch user profile on mount
+  // Fetch user profile when userId is available
   useEffect(() => {
     if (userId) {
       fetchUserProfile();
     }
   }, [userId, fetchUserProfile]);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
@@ -389,12 +413,20 @@ export default function AdminSeafarerProfilePage() {
               <div className="h-32 bg-gradient-to-r from-primary to-primary-hover relative">
                 <div className="absolute -bottom-16 left-8">
                   <div className="w-32 h-32 rounded-full border-4 border-white dark:border-surface-dark shadow-lg bg-gray-200 overflow-hidden">
-                    <div className="w-full h-full flex items-center justify-center bg-primary text-white text-4xl font-bold">
-                      {displayName
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </div>
+                    {userProfile?.profile?.profile_photo_url ? (
+                      <img
+                        src={userProfile.profile.profile_photo_url}
+                        alt={displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary text-white text-4xl font-bold">
+                        {displayName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

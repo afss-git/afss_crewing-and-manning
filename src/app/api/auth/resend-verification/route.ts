@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getExternalApiToken } from "../../../../lib/externalApiToken";
 
 const API_BASE_URL = "https://crewing-mvp.onrender.com/api/v1";
 
@@ -14,15 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get external API token
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-    if (!externalApiToken) {
-      console.error("EXTERNAL_API_TOKEN not configured");
-      return NextResponse.json(
-        { detail: "Server configuration error" },
-        { status: 500 },
-      );
-    }
+    // Get external API token (auto-refreshes if expired)
+    const externalApiToken = await getExternalApiToken();
 
     console.log("Resend verification request for email:", email);
 

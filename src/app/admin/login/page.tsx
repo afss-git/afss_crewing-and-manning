@@ -19,27 +19,30 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      // Use the correct local admin API endpoint
+      // Use the new admin-specific API route
       const response = await fetch(
         `/api/v1/admin/login/admin?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
+            accept: "application/json",
           },
         },
       );
 
+      console.log("🔐 Login response status:", response.status);
       const data = await response.json();
+      console.log("🔐 Login response data:", data);
 
       if (!response.ok) {
+        console.error("❌ Login failed:", data.detail || data);
         setError(data.detail || "Invalid email or password");
         setIsLoading(false);
         return;
       }
 
       const { access_token } = data;
+      console.log("✅ Got access token, redirecting...");
 
       // Store auth data
       const adminUser = {
@@ -52,11 +55,13 @@ export default function AdminLoginPage() {
 
       localStorage.setItem("crew-manning-user", JSON.stringify(adminUser));
       localStorage.setItem("crew-manning-token", access_token);
+      console.log("✅ Stored token and user data");
 
       // Redirect to admin dashboard
+      console.log("🚀 Redirecting to /admin/dashboard...");
       router.push("/admin/dashboard");
     } catch (err) {
-      console.error("Admin login error:", err);
+      console.error("❌ Admin login error:", err);
       setError("Login failed. Please try again.");
     } finally {
       setIsLoading(false);

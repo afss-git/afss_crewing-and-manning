@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../lib/externalApiToken";
 
 interface CrewManagementApi {
   id: number;
@@ -36,15 +37,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 },
-      );
-    }
+    const externalApiToken = await getExternalApiToken();
 
     // Build the external API URL with optional status filter
     let externalUrl = `https://crewing-mvp.onrender.com/api/v1/admin/crew-management`;

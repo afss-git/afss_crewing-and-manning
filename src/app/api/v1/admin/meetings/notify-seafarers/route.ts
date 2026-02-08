@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getExternalApiToken } from "../../../../../../lib/externalApiToken";
 
 interface MeetingNotificationRequest {
   meeting_link: string;
@@ -42,9 +43,9 @@ export async function POST(request: NextRequest) {
 
     // Forward request to external API
     const externalApiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const externalToken = process.env.EXTERNAL_API_TOKEN;
+    const externalToken = await getExternalApiToken();
 
-    if (!externalApiUrl || !externalToken) {
+    if (!externalApiUrl) {
       console.error("Missing external API configuration");
       return NextResponse.json(
         { error: "External API not configured" },

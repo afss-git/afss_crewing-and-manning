@@ -16,12 +16,40 @@ export default function ShipOwnerRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/register/shipowner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-    // Simulate registration API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      const data = await response.json();
+      console.log("Shipowner registration response:", {
+        status: response.status,
+        data,
+      });
 
-    // Redirect to verification page after registration with email parameter
-    router.push(`/verify/email?email=${encodeURIComponent(formData.email)}`);
+      if (!response.ok) {
+        // basic error handling — show alert for now
+        alert(data.detail || "Registration failed. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Success — redirect to centralized verify page
+      router.push(`/verify/email?email=${encodeURIComponent(formData.email)}`);
+    } catch (err) {
+      console.error("Registration error:", err);
+      alert("Network error. Please check your connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

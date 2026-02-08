@@ -1,9 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
-export default function OneOffSuccessPage() {
+function OneOffSuccessContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  
+  const contractId = searchParams?.get("contract_id");
+  const [isLoading, setIsLoading] = useState(true);
+  const [contract, setContract] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchContract = async () => {
+      if (!contractId || !user?.accessToken) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/v1/contracts/${contractId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setContract(data);
+        } else {
+          console.error("Failed to fetch contract:", response.status);
+        }
+      } catch (err) {
+        console.error("Error fetching contract:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContract();
+  }, [contractId, user?.accessToken]);
+
+  const handleViewStatus = () => {
+    if (contractId) {
+      router.push(`/shipowner/application-status?contract_id=${contractId}`);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden font-display text-slate-900 dark:text-white bg-background-light dark:bg-background-dark">
       {/* Sidebar */}
@@ -135,7 +184,7 @@ export default function OneOffSuccessPage() {
               <p className="text-lg text-slate-500 dark:text-slate-400 mb-8 leading-relaxed max-w-lg mx-auto">
                 Your one-off crew supply contract request{" "}
                 <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
-                  #C-2023-8842
+                  #{contractId || "Loading..."}
                 </span>{" "}
                 has been successfully submitted for review.
               </p>
@@ -177,7 +226,10 @@ export default function OneOffSuccessPage() {
                 </ul>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="px-6 py-3 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleViewStatus}
+                  className="px-6 py-3 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
                   <span className="material-symbols-outlined">visibility</span>
                   View Application Status
                 </button>
@@ -206,5 +258,13 @@ export default function OneOffSuccessPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function OneOffSuccessPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+      <OneOffSuccessContent />
+    </Suspense>
   );
 }

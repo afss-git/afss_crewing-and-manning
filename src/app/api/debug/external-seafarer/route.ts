@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getExternalApiToken } from "../../../../lib/externalApiToken";
 
 interface Document {
   id: number;
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId") || "4"; // Default to user 4
 
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
+    const externalApiToken = await getExternalApiToken();
     if (!externalApiToken) {
       return NextResponse.json(
         { error: "External API token not configured" },

@@ -70,37 +70,40 @@ export default function AdminSeafarersPage() {
 
         // Transform API data to match our Applicant interface
         const transformedApplicants: Applicant[] = (data.seafarers || data).map(
-          (seafarer: Record<string, unknown>) => ({
-            user_id: seafarer.id || seafarer.user_id,
-            name:
-              seafarer.first_name && seafarer.last_name
-                ? `${seafarer.first_name} ${seafarer.last_name}`
-                : seafarer.name || "Unknown",
-            role: seafarer.rank || seafarer.role || "Seafarer",
-            country: seafarer.nationality || seafarer.country || "Unknown",
-            flag: seafarer.nationality || seafarer.country || "Unknown",
-            applied:
-              seafarer.created_at && typeof seafarer.created_at === "string"
-                ? new Date(seafarer.created_at).toLocaleDateString()
-                : seafarer.applied || "Recently",
-            avatar:
-              seafarer.profile_photo_url ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(seafarer.first_name + " " + seafarer.last_name)}&background=701012&color=fff`,
-            status: seafarer.status || "Under Review",
-            statusType:
-              seafarer.status === "approved"
-                ? "success"
-                : seafarer.status === "pending"
-                  ? "warning"
-                  : "neutral",
-            experience:
-              seafarer.experience ||
-              `${seafarer.sea_service_years || 0} Years Experience`,
-            email: seafarer.email || "",
-            phone: seafarer.phone || "",
-            progress: seafarer.application_progress || 50,
-            documents: seafarer.documents || [],
-          }),
+          (seafarer: Record<string, unknown>) => {
+            // Determine status based on is_approved boolean
+            const isApproved = seafarer.is_approved === true;
+            const approvalStatus = isApproved ? "Approved" : "Under Review";
+            const approvalStatusType: "success" | "warning" | "neutral" =
+              isApproved ? "success" : "warning";
+
+            return {
+              user_id: seafarer.id || seafarer.user_id,
+              name:
+                seafarer.first_name && seafarer.last_name
+                  ? `${seafarer.first_name} ${seafarer.last_name}`
+                  : seafarer.name || "Unknown",
+              role: seafarer.rank || seafarer.role || "Seafarer",
+              country: seafarer.nationality || seafarer.country || "Unknown",
+              flag: seafarer.nationality || seafarer.country || "Unknown",
+              applied:
+                seafarer.created_at && typeof seafarer.created_at === "string"
+                  ? new Date(seafarer.created_at).toLocaleDateString()
+                  : seafarer.applied || "Recently",
+              avatar:
+                seafarer.profile_photo_url ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(seafarer.first_name + " " + seafarer.last_name)}&background=701012&color=fff`,
+              status: approvalStatus,
+              statusType: approvalStatusType,
+              experience:
+                seafarer.experience ||
+                `${seafarer.sea_service_years || 0} Years Experience`,
+              email: seafarer.email || "",
+              phone: seafarer.phone || "",
+              progress: seafarer.application_progress || 50,
+              documents: seafarer.documents || [],
+            };
+          },
         );
 
         setApplicants(transformedApplicants);
@@ -123,8 +126,19 @@ export default function AdminSeafarersPage() {
     (a) => a.statusType === "success",
   ).length;
 
-  // Safety check: ensure we have applicants and valid selectedApplicant
-  const applicant = applicants[selectedApplicant] ||
+  // Filter applicants based on active tab
+  const filteredApplicants = applicants.filter((a) => {
+    if (activeTab === "new") {
+      return a.statusType === "warning" || a.statusType === "neutral";
+    } else if (activeTab === "verified") {
+      return a.statusType === "success";
+    }
+    return true;
+  });
+
+  // Get the selected applicant
+  const selectedApplicantData = applicants[selectedApplicant];
+  const applicant = selectedApplicantData ||
     applicants[0] || {
       user_id: 0,
       name: "Loading...",
@@ -540,64 +554,89 @@ export default function AdminSeafarersPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
-              {applicants.map((a, i) => (
-                <div
-                  key={i}
-                  className={`group flex items-center p-4 rounded-xl border ${
-                    i === selectedApplicant
-                      ? "border-primary/20 bg-primary/5"
-                      : "border-[#e8ebf3] hover:border-[#d0d5dd] bg-white dark:bg-[#1a202c]"
-                  } cursor-pointer shadow-sm relative overflow-hidden transition-all`}
-                  onClick={() => setSelectedApplicant(i)}
-                >
-                  {i === selectedApplicant && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-                  )}
+              {filteredApplicants.length > 0 ? (
+                filteredApplicants.map((a, i) => (
                   <div
-                    className="size-12 rounded-full bg-cover bg-center mr-4 flex-shrink-0"
-                    style={{ backgroundImage: `url('${a.avatar}')` }}
-                  ></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between mb-1">
-                      <h3 className="font-bold text-[#0e121b] dark:text-white truncate">
-                        {a.name}
-                      </h3>
-                      <span className="text-xs text-[#506795]">
-                        Applied {a.applied}
-                      </span>
+                    key={i}
+                    className={`group flex items-center p-4 rounded-xl border ${
+                      applicant.user_id === a.user_id
+                        ? "border-primary/20 bg-primary/5"
+                        : "border-[#e8ebf3] hover:border-[#d0d5dd] bg-white dark:bg-[#1a202c]"
+                    } cursor-pointer shadow-sm relative overflow-hidden transition-all`}
+                    onClick={() => {
+                      const actualIndex = applicants.findIndex(
+                        (app) => app.user_id === a.user_id,
+                      );
+                      setSelectedApplicant(actualIndex);
+                    }}
+                  >
+                    {applicant.user_id === a.user_id && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                    )}
+                    <div
+                      className="size-12 rounded-full bg-cover bg-center mr-4 flex-shrink-0"
+                      style={{ backgroundImage: `url('${a.avatar}')` }}
+                    ></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between mb-1">
+                        <h3 className="font-bold text-[#0e121b] dark:text-white truncate">
+                          {a.name}
+                        </h3>
+                        <span className="text-xs text-[#506795]">
+                          Applied {a.applied}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="font-medium text-[#0e121b] dark:text-white">
+                          {a.role}
+                        </span>
+                        <span className="w-1 h-1 bg-[#d0d5dd] rounded-full"></span>
+                        <span className="text-[#506795] flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[16px]">
+                            flag
+                          </span>{" "}
+                          {a.country}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="font-medium text-[#0e121b] dark:text-white">
-                        {a.role}
-                      </span>
-                      <span className="w-1 h-1 bg-[#d0d5dd] rounded-full"></span>
-                      <span className="text-[#506795] flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[16px]">
-                          flag
-                        </span>{" "}
-                        {a.country}
-                      </span>
+                    <div className="ml-4 flex flex-col items-end gap-2">
+                      {a.statusType === "warning" && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                          <span className="material-symbols-outlined text-[16px]">
+                            schedule
+                          </span>
+                          {a.status}
+                        </span>
+                      )}
+                      {a.statusType === "neutral" && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                          <span className="material-symbols-outlined text-[16px]">
+                            pending
+                          </span>
+                          {a.status}
+                        </span>
+                      )}
+                      {a.statusType === "success" && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200 shadow-sm">
+                          <span className="material-symbols-outlined text-[16px]">
+                            verified
+                          </span>
+                          {a.status}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="ml-4 flex flex-col items-end gap-2">
-                    {a.statusType === "warning" && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning">
-                        {a.status}
-                      </span>
-                    )}
-                    {a.statusType === "neutral" && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-[#e8ebf3] text-[#506795]">
-                        {a.status}
-                      </span>
-                    )}
-                    {a.statusType === "success" && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-success/10 text-success">
-                        {a.status}
-                      </span>
-                    )}
-                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">
+                    person_off
+                  </span>
+                  <p className="text-gray-500 text-sm font-medium">
+                    No applicants in this category
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

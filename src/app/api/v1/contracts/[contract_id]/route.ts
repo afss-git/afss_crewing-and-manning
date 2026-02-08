@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-interface JWTPayload {
-  id: number;
-  email: string;
-  role?: string;
-}
+import { getExternalApiToken } from "@/lib/externalApiToken";
 
 export const dynamic = "force-dynamic";
 
@@ -25,38 +18,35 @@ export async function GET(
       );
     }
 
+    // Extract token (from external API) - no local verification needed
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    const userId = decoded.id;
+    console.log(`🔗 Fetching contract ${contract_id} with external API token...`);
 
-    const contract = await prisma.contract.findUnique({
-      where: {
-        id: parseInt(contract_id),
-        shipOwner: {
-          userId: userId,
+    // Pass the user's token directly to external API
+    const externalResponse = await fetch(
+      `https://crewing-mvp.onrender.com/api/v1/contracts/${contract_id}`,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${token}`,
         },
       },
-      include: {
-        shipOwner: {
-          select: {
-            companyName: true,
-            user: {
-              select: {
-                email: true,
-              },
-            },
-          },
-        },
-        positions: true,
-      },
-    });
+    );
 
-    if (!contract) {
+    if (!externalResponse.ok) {
+      console.error(
+        `❌ External API error: ${externalResponse.status}`,
+        await externalResponse.text()
+      );
       return NextResponse.json(
-        { detail: "Contract not found" },
-        { status: 404 },
+        { detail: `External API error: ${externalResponse.status}` },
+        { status: externalResponse.status },
       );
     }
+
+    const contract = await externalResponse.json();
+    console.log(`✅ Successfully fetched contract ${contract_id}`);
 
     return NextResponse.json(contract, { status: 200 });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
 
 export async function POST(
   req: NextRequest,
@@ -16,15 +17,7 @@ export async function POST(
   try {
     const { request_id } = await params;
 
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 },
-      );
-    }
+    const externalApiToken = await getExternalApiToken();
 
     // Call the external API to approve the crew management request
     const externalResponse = await fetch(

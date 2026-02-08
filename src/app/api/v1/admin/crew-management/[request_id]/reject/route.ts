@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../../lib/auth";
-
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
 interface RejectRequest {
   notes: string;
 }
@@ -20,15 +20,7 @@ export async function POST(
   try {
     const { request_id } = await params;
 
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 },
-      );
-    }
+    const externalApiToken = await getExternalApiToken();
 
     // Parse request body to get rejection notes
     const body: RejectRequest = await req.json();

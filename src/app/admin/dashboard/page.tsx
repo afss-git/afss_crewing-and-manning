@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminProfile from "../../../components/AdminProfile";
+import { API_CONFIG, fetchWithAuth } from "@/lib/api";
 
 // Define TypeScript interfaces for our data
 interface ApiSeafarer {
@@ -63,6 +64,12 @@ export default function AdminDashboardPage() {
     "all" | "pending" | "approved" | "rejected"
   >("all");
 
+  // Use ref to avoid recreating function on every render
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
   // Fetch admin data from API
   const fetchAdminData = useCallback(async () => {
     try {
@@ -72,53 +79,41 @@ export default function AdminDashboardPage() {
       // Get auth token from localStorage
       const token = localStorage.getItem("crew-manning-token");
       if (!token) {
-        router.push("/admin/login");
+        console.warn("⚠️ No token found, redirecting to login");
+        routerRef.current.push("/admin/login");
         return;
       }
 
-      // Fetch all seafarers from the new API
+      console.log(
+        "📡 Fetching seafarers from Next.js API proxy: /api/v1/admin/seafarers",
+      );
+
+      // Use Next.js API route proxy (NOT direct backend call)
       const response = await fetch("/api/v1/admin/seafarers", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
         },
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Proxy returned error:", response.status, errorText);
+
         if (response.status === 401) {
-          // Token is invalid or expired - redirect to login
+          console.warn("⚠️ Token expired or invalid, redirecting to login");
           localStorage.removeItem("crew-manning-token");
           localStorage.removeItem("crew-manning-user");
-          router.push("/admin/login");
+          routerRef.current.push("/admin/login");
           return;
         }
 
-        if (response.status === 503) {
-          // External API is down - show degraded state but don't fail completely
-          const errorData = await response.json();
-          console.warn("External API unavailable, showing fallback state", errorData);
-          setAllSeafarers([]);
-          setSeafarers([]);
-          setStats({
-            totalSeafarers: 0,
-            newApplicants: 0,
-            verifiedSeafarers: 0,
-            shipOwners: 0,
-            activeContracts: 0,
-          });
-          setError(
-            "External API is temporarily unavailable. Data may be outdated.",
-          );
-          setLoading(false);
-          return;
-        }
-
-        throw new Error(`Failed to fetch data: ${response.status}`);
+        throw new Error(
+          `HTTP ${response.status}: ${errorText || "Unknown error"}`,
+        );
       }
 
       const seafarersData = await response.json();
-      console.log("Response status:", response.status);
-      console.log("Seafarers data:", seafarersData);
-      console.log("Number of seafarers returned:", seafarersData?.length || 0);
+      console.log("✅ Seafarers ", seafarersData);
 
       // If no seafarers, show empty state
       if (!seafarersData || seafarersData.length === 0) {
@@ -146,7 +141,7 @@ export default function AdminDashboardPage() {
           } else if (seafarer.is_approved === false) {
             status = "Pending";
           } else {
-            status = "Rejected"; // For future when API supports rejected status
+            status = "Rejected";
           }
 
           return {
@@ -156,7 +151,7 @@ export default function AdminDashboardPage() {
               "Unknown Seafarer",
             email: seafarer.email || "",
             position: seafarer.rank || "Not specified",
-            date: new Date().toLocaleDateString(), // Since API doesn't provide date, use current date
+            date: new Date().toLocaleDateString(),
             status: status,
             rank: seafarer.rank,
             years_of_experience: seafarer.years_of_experience,
@@ -174,83 +169,62 @@ export default function AdminDashboardPage() {
         verifiedSeafarers: mappedSeafarers.filter(
           (s: Seafarer) => s.status === "Approved",
         ).length,
-        shipOwners: 0, // Would come from ship owners data if available
-        activeContracts: 0, // Would come from contracts data if available
+        shipOwners: 0,
+        activeContracts: 0,
       };
 
-      // For now, use sample deployments until we have a real deployments endpoint
-      const sampleDeployments: Deployment[] = [
-        {
-          id: "1",
-          vesselName: "MV Oceanic Star",
-          status: "En Route",
-          location: "Rotterdam → Singapore",
-          crewCount: 24,
-        },
-        {
-          id: "2",
-          vesselName: "SS Pacific Voyager",
-          status: "Docked",
-          location: "Port of Shanghai",
-          crewCount: 18,
-        },
-        {
-          id: "3",
-          vesselName: "LNG Titan",
-          status: "Maintenance",
-          location: "Dubai Drydocks",
-          crewCount: 8,
-        },
-      ];
-
-      console.log("Mapped Seafarers:", mappedSeafarers);
-      console.log("Stats:", calculatedStats);
+      console.log("📊 Mapped Seafarers:", mappedSeafarers);
+      console.log("📊 Stats:", calculatedStats);
 
       setAllSeafarers(mappedSeafarers);
-      // Initially show all seafarers
       setSeafarers(mappedSeafarers);
-      setDeployments(sampleDeployments);
       setStats(calculatedStats);
+      setLoading(false);
     } catch (err) {
-      console.error("Failed to fetch admin data:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load dashboard data",
-      );
-    } finally {
+      console.error("❌ Failed to fetch admin ", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load dashboard data";
+      console.error("❌ Error details:", errorMessage);
+      setError(errorMessage);
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   // Filter seafarers based on active filter
-  const applyFilter = (filter: "all" | "pending" | "approved" | "rejected") => {
-    setActiveFilter(filter);
-    if (filter === "all") {
-      setSeafarers(allSeafarers);
-    } else if (filter === "pending") {
-      setSeafarers(allSeafarers.filter((s) => s.status === "Pending"));
-    } else if (filter === "approved") {
-      setSeafarers(allSeafarers.filter((s) => s.status === "Approved"));
-    } else if (filter === "rejected") {
-      setSeafarers(allSeafarers.filter((s) => s.status === "Rejected"));
-    }
-  };
+  const applyFilter = useCallback(
+    (filter: "all" | "pending" | "approved" | "rejected") => {
+      setActiveFilter(filter);
+      if (filter === "all") {
+        setSeafarers(allSeafarers);
+      } else if (filter === "pending") {
+        setSeafarers(allSeafarers.filter((s) => s.status === "Pending"));
+      } else if (filter === "approved") {
+        setSeafarers(allSeafarers.filter((s) => s.status === "Approved"));
+      } else if (filter === "rejected") {
+        setSeafarers(allSeafarers.filter((s) => s.status === "Rejected"));
+      }
+    },
+    [allSeafarers],
+  );
 
   // Handle logout
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("crew-manning-token");
     localStorage.removeItem("crew-manning-user");
     router.push("/admin/login");
-  };
+  }, [router]);
 
   // Fetch data on component mount
   useEffect(() => {
+    console.log("🚀 Dashboard mounted, fetching data...");
     fetchAdminData();
-  }, [router, fetchAdminData]);
+  }, [fetchAdminData]);
 
   // Check authentication
   useEffect(() => {
     const token = localStorage.getItem("crew-manning-token");
     if (!token) {
+      console.warn("⚠️ No token, redirecting to login");
       router.push("/admin/login");
     }
   }, [router]);

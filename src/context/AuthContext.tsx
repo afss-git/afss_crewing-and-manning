@@ -54,8 +54,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// NOTE: removed demo/mock user fallback to require real backend auth
-
 // Helper function to decode JWT and extract role
 function decodeJWT(
   token: string,
@@ -76,35 +74,16 @@ function decodeJWT(
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Initialize with null - will hydrate from localStorage in useEffect
+  // Store user and token in memory only (no localStorage)
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<SeafarerProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as loading until hydrated
+  const [isLoading, setIsLoading] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(true);
   const router = useRouter();
 
-  // Hydrate from localStorage after mount (client-side only)
+  // No localStorage hydration - rely on API for secure state
   useEffect(() => {
-    const storedUser = localStorage.getItem("crew-manning-user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem("crew-manning-user");
-      }
-    }
-
-    const storedProfile = localStorage.getItem("crew-manning-profile");
-    if (storedProfile) {
-      try {
-        setProfile(JSON.parse(storedProfile));
-      } catch {
-        localStorage.removeItem("crew-manning-profile");
-      }
-    }
-
-    setIsLoading(false);
     setIsHydrated(true);
   }, []);
 
@@ -113,18 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     success: boolean;
     status?: number;
   }> => {
-    const token = localStorage.getItem("crew-manning-token");
-    if (!token) {
-      console.log("No token found, cannot fetch profile");
+    if (!user?.accessToken) {
+      console.log("No token available, cannot fetch profile");
       return { success: false, status: 401 };
     }
 
     // Validate token is not expired
-    const decodedToken = decodeJWT(token);
+    const decodedToken = decodeJWT(user.accessToken);
     if (!decodedToken || decodedToken.exp * 1000 < Date.now()) {
-      console.log("Token expired, cannot fetch profile");
-      localStorage.removeItem("crew-manning-token");
-      localStorage.removeItem("crew-manning-user");
+      console.log("Token expired");
+      logout();
       return { success: false, status: 401 };
     }
 
@@ -134,32 +111,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "GET",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${user.accessToken}`,
         },
       });
 
       if (response.ok) {
         const profileData: SeafarerProfile = await response.json();
         setProfile(profileData);
-        localStorage.setItem(
-          "crew-manning-profile",
-          JSON.stringify(profileData),
-        );
 
         // Update user name and avatar from profile
-        if (user && profileData.first_name) {
-          const updatedUser = {
-            ...user,
-            name: `${profileData.first_name} ${profileData.last_name}`,
-            avatar: profileData.profile_photo_url || user.avatar,
-            title: profileData.rank,
-          };
-          setUser(updatedUser);
-          localStorage.setItem(
-            "crew-manning-user",
-            JSON.stringify(updatedUser),
-          );
-        }
+        const updatedUser = {
+          ...user,
+          name: `${profileData.first_name} ${profileData.last_name}`,
+          avatar: profileData.profile_photo_url || user.avatar,
+          title: profileData.rank,
+        };
+        setUser(updatedUser);
         return { success: true, status: response.status };
       } else {
         console.log(`Profile fetch failed with status: ${response.status}`);
@@ -173,15 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Note: Removed automatic profile fetching from AuthContext to prevent loops
-  // Profile will be fetched explicitly when needed by components
-
   const login = async (email: string, password: string) => {
     setIsLoading(true);
 
-    // No demo fallback: always use real API login
-
-    // Try real API login
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -220,13 +181,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let userTitle = undefined;
 
       if (normalizedRole === "admin") {
-        userName = "Administrator"; // Professional admin name
+        userName = "Administrator";
         userTitle = "System Administrator";
       } else if (normalizedRole === "seafarer") {
-        // Keep existing seafarer logic - name will be updated from profile later
         userName = email.split("@")[0];
       } else if (normalizedRole === "shipowner") {
-        userName = email.split("@")[0]; // Could be enhanced later
+        userName = email.split("@")[0];
         userTitle = "Fleet Manager";
       }
 
@@ -241,13 +201,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
 
       setUser(apiUser);
-      localStorage.setItem("crew-manning-user", JSON.stringify(apiUser));
-      localStorage.setItem("crew-manning-token", access_token);
       setIsLoading(false);
 
-      // Redirect based on role
+      // Route based on role and check profile status
       if (apiUser.role === "shipowner") {
-        router.push("/shipowner/contract-type");
+        // Check if we just created a profile (flag to prevent redirect loop)
+        const profileJustCreated =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("shipowner_profile_created") === "true"
+            : false;
+
+        if (profileJustCreated) {
+          // Just created profile, go to dashboard
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("shipowner_profile_created");
+          }
+          router.push("/shipowner/dashboard");
+          return;
+        }
+
+        // Check if shipowner has a profile
+        try {
+          const profileResponse = await fetch("/api/v1/profile", {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${access_token}`,
+            },
+          });
+
+          if (profileResponse.ok) {
+            // Profile exists, proceed to dashboard
+            router.push("/shipowner/dashboard");
+          } else if (profileResponse.status === 404) {
+            // No profile found, redirect to profile creation
+            const profileData = await profileResponse.json();
+            if (
+              profileData.detail &&
+              profileData.detail.includes("profile not found")
+            ) {
+              router.push("/shipowner/profile/create");
+            } else {
+              router.push("/shipowner/profile/create");
+            }
+          } else {
+            // Other error, default to profile creation
+            router.push("/shipowner/profile/create");
+          }
+        } catch (error) {
+          console.error("Error checking shipowner profile:", error);
+          // On error, redirect to profile creation to be safe
+          router.push("/shipowner/profile/create");
+        }
       } else if (apiUser.role === "seafarer") {
         // Check if seafarer has a profile before allowing dashboard access
         try {
@@ -289,9 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setProfile(null);
-    localStorage.removeItem("crew-manning-user");
-    localStorage.removeItem("crew-manning-token");
-    localStorage.removeItem("crew-manning-profile");
+    // No localStorage to clear
     router.push("/login");
   };
 

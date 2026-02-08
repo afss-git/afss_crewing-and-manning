@@ -1,15 +1,88 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
 export default function FullManagementContractPage() {
   const router = useRouter();
-  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const { user } = useAuth();
+
+  const [vesselName, setVesselName] = useState("");
+  const [imoNumber, setImoNumber] = useState("");
+  const [vesselType, setVesselType] = useState("");
+  const [vesselFlag, setVesselFlag] = useState("");
+  const [operationalRoutes, setOperationalRoutes] = useState("");
+  const [commencementDate, setCommencementDate] = useState("");
+  const [duration, setDuration] = useState("");
+  const [services, setServices] = useState<string[]>([]);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const toggleService = (value: string) => {
+    setServices((prev) => (prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value]));
+  };
+
+  const validate = () => {
+    if (!vesselName.trim()) return "Vessel name is required";
+    if (!vesselType) return "Vessel type is required";
+    if (!vesselFlag.trim()) return "Vessel flag is required";
+    if (!duration) return "Agreement duration is required";
+    if (!commencementDate.match(/^\d{4}-\d{2}-\d{2}$/)) return "Commencement date must be in YYYY-MM-DD format";
+    if (!imoNumber.match(/^\d{7}$/)) return "IMO number must be 7 digits";
+    if (services.length === 0) return "Select at least one service";
+    return null;
+  };
+
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    // Here you would normally handle form validation and API submission
-    router.push("/shipowner/contract-type/full/success");
+    setFormError(null);
+    const err = validate();
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    if (!user?.accessToken) {
+      setFormError("Not authenticated. Please log in.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("vessel_type", vesselType);
+      if (certificateFile) fd.append("vessel_certificates", certificateFile, certificateFile.name);
+      fd.append("duration", duration);
+      fd.append("vessel_name", vesselName);
+      fd.append("vessel_flag", vesselFlag);
+      fd.append("operational_routes", operationalRoutes);
+      fd.append("commencement_date", commencementDate);
+      fd.append("imo_number", imoNumber);
+      // append each selected service as separate field entries
+      services.forEach((s) => fd.append("services", s));
+
+      const res = await fetch("/api/v1/crew-management", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.message || `HTTP ${res.status}`);
+      }
+
+      router.push("/shipowner/contract-type/full/success");
+    } catch (err: any) {
+      setFormError(err?.message || "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <div className="flex h-screen overflow-hidden font-display text-slate-900 dark:text-white bg-background-light dark:bg-background-dark">
@@ -210,6 +283,8 @@ export default function FullManagementContractPage() {
                       </label>
                       <div className="relative">
                         <input
+                          value={vesselName}
+                          onChange={(e) => setVesselName(e.target.value)}
                           className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary placeholder-slate-400"
                           placeholder="e.g. MV Global Trader"
                           type="text"
@@ -221,22 +296,26 @@ export default function FullManagementContractPage() {
                         IMO Number <span className="text-red-500">*</span>
                       </label>
                       <input
+                        value={imoNumber}
+                        onChange={(e) => setImoNumber(e.target.value)}
                         className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary placeholder-slate-400"
                         placeholder="e.g. 9876543"
                         type="text"
+                        inputMode="numeric"
+                        maxLength={7}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                         Vessel Type
                       </label>
-                      <select className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
+                      <select value={vesselType} onChange={(e) => setVesselType(e.target.value)} className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
                         <option value="">Select type...</option>
-                        <option value="bulk">Bulk Carrier</option>
-                        <option value="container">Container Ship</option>
-                        <option value="tanker">Oil Tanker</option>
-                        <option value="lng">LNG Carrier</option>
-                        <option value="roro">Ro-Ro</option>
+                        <option value="Bulk Carrier">Bulk Carrier</option>
+                        <option value="Container Ship">Container Ship</option>
+                        <option value="Oil Tanker">Oil Tanker</option>
+                        <option value="LNG Carrier">LNG Carrier</option>
+                        <option value="Ro-Ro">Ro-Ro</option>
                       </select>
                     </div>
                     <div className="col-span-2">
@@ -244,8 +323,22 @@ export default function FullManagementContractPage() {
                         Primary Operational Routes
                       </label>
                       <input
+                        value={operationalRoutes}
+                        onChange={(e) => setOperationalRoutes(e.target.value)}
                         className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary placeholder-slate-400"
                         placeholder="e.g. Trans-Pacific, Mediterranean, North Sea"
+                        type="text"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                        Vessel Flag <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        value={vesselFlag}
+                        onChange={(e) => setVesselFlag(e.target.value)}
+                        className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary placeholder-slate-400"
+                        placeholder="e.g. Panama, Liberia, North Sea"
                         type="text"
                       />
                     </div>
@@ -271,59 +364,31 @@ export default function FullManagementContractPage() {
                       </label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <label className="flex items-start p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                          <input
-                            className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded"
-                            type="checkbox"
-                          />
+                          <input value="full_crewing" checked={services.includes("full_crewing")} onChange={() => toggleService("full_crewing")} className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded" type="checkbox" />
                           <div className="ml-3">
-                            <span className="block text-sm font-medium text-slate-900 dark:text-white">
-                              Full Crewing
-                            </span>
-                            <span className="block text-xs text-slate-500">
-                              Recruitment, deployment, payroll
-                            </span>
+                            <span className="block text-sm font-medium text-slate-900 dark:text-white">Full Crewing</span>
+                            <span className="block text-xs text-slate-500">Recruitment, deployment, payroll</span>
                           </div>
                         </label>
                         <label className="flex items-start p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                          <input
-                            className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded"
-                            type="checkbox"
-                          />
+                          <input value="technical_mgmt" checked={services.includes("technical_mgmt")} onChange={() => toggleService("technical_mgmt")} className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded" type="checkbox" />
                           <div className="ml-3">
-                            <span className="block text-sm font-medium text-slate-900 dark:text-white">
-                              Technical Mgmt
-                            </span>
-                            <span className="block text-xs text-slate-500">
-                              Maintenance, repairs, dry-docking
-                            </span>
+                            <span className="block text-sm font-medium text-slate-900 dark:text-white">Technical Mgmt</span>
+                            <span className="block text-xs text-slate-500">Maintenance, repairs, dry-docking</span>
                           </div>
                         </label>
                         <label className="flex items-start p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                          <input
-                            className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded"
-                            type="checkbox"
-                          />
+                          <input value="insurance_legal" checked={services.includes("insurance_legal")} onChange={() => toggleService("insurance_legal")} className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded" type="checkbox" />
                           <div className="ml-3">
-                            <span className="block text-sm font-medium text-slate-900 dark:text-white">
-                              Insurance & Legal
-                            </span>
-                            <span className="block text-xs text-slate-500">
-                              P&I claims, legal representation
-                            </span>
+                            <span className="block text-sm font-medium text-slate-900 dark:text-white">Insurance & Legal</span>
+                            <span className="block text-xs text-slate-500">P&I claims, legal representation</span>
                           </div>
                         </label>
                         <label className="flex items-start p-3 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                          <input
-                            className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded"
-                            type="checkbox"
-                          />
+                          <input value="procurement" checked={services.includes("procurement")} onChange={() => toggleService("procurement")} className="mt-1 w-4 h-4 text-primary border-slate-300 focus:ring-primary rounded" type="checkbox" />
                           <div className="ml-3">
-                            <span className="block text-sm font-medium text-slate-900 dark:text-white">
-                              Procurement
-                            </span>
-                            <span className="block text-xs text-slate-500">
-                              Stores, spares, and provisions
-                            </span>
+                            <span className="block text-sm font-medium text-slate-900 dark:text-white">Procurement</span>
+                            <span className="block text-xs text-slate-500">Stores, spares, and provisions</span>
                           </div>
                         </label>
                       </div>
@@ -334,6 +399,8 @@ export default function FullManagementContractPage() {
                       </label>
                       <div className="relative">
                         <input
+                          value={commencementDate}
+                          onChange={(e) => setCommencementDate(e.target.value)}
                           className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
                           type="date"
                         />
@@ -343,12 +410,13 @@ export default function FullManagementContractPage() {
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                         Agreement Duration
                       </label>
-                      <select className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
-                        <option>1 Year</option>
-                        <option>2 Years</option>
-                        <option>3 Years</option>
-                        <option>5 Years</option>
-                        <option>Indefinite (with notice)</option>
+                      <select value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
+                        <option value="">Select duration...</option>
+                        <option value="1 Year">1 Year</option>
+                        <option value="2 Years">2 Years</option>
+                        <option value="3 Years">3 Years</option>
+                        <option value="5 Years">5 Years</option>
+                        <option value="Indefinite">Indefinite</option>
                       </select>
                     </div>
                   </div>
@@ -368,33 +436,39 @@ export default function FullManagementContractPage() {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
-                      <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">
-                        cloud_upload
-                      </span>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">
-                        Drag & drop vessel certificates here
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        or click to browse (PDF, JPG up to 10MB)
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-slate-400">
-                          picture_as_pdf
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-slate-900 dark:text-white">
-                            Ship_Particulars_2023.pdf
+                      <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <label className="w-full flex flex-col items-center cursor-pointer">
+                          <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">
+                            cloud_upload
                           </span>
-                          <span className="text-xs text-slate-500">2.4 MB</span>
-                        </div>
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">
+                            Drag & drop vessel certificates here
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            or click to browse (PDF, JPG up to 10MB)
+                          </p>
+                          <input
+                            type="file"
+                            accept="application/pdf,image/*"
+                            className="hidden"
+                            onChange={(e) => setCertificateFile(e.target.files?.[0] || null)}
+                          />
+                        </label>
                       </div>
-                      <button className="text-slate-400 hover:text-red-500 transition-colors">
-                        <span className="material-symbols-outlined">close</span>
-                      </button>
-                    </div>
+                      {certificateFile && (
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined text-slate-400">picture_as_pdf</span>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-slate-900 dark:text-white">{certificateFile.name}</span>
+                              <span className="text-xs text-slate-500">{(certificateFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => setCertificateFile(null)} className="text-slate-400 hover:text-red-500 transition-colors">
+                            <span className="material-symbols-outlined">close</span>
+                          </button>
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

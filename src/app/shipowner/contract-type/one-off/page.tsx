@@ -1,16 +1,224 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+interface CrewPosition {
+  id: string;
+  rank: string;
+  quantity: number;
+  experience: string;
+  nationality: string;
+}
 
 export default function OneOffContractPage() {
   const router = useRouter();
-  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    // Here you would normally handle form validation and API submission
-    router.push("/shipowner/contract-type/one-off/success");
+  const { user } = useAuth();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    vessel_id: "",
+    operational_zone: "",
+    target_start_date: "",
+    duration_value: "6",
+    duration_unit: "Months",
+    port_of_embarkation: "",
+    port_of_disembarkation: "",
+  });
+
+  const [positions, setPositions] = useState<CrewPosition[]>([
+    {
+      id: "1",
+      rank: "Master / Captain",
+      quantity: 1,
+      experience: "5+ Years",
+      nationality: "Any",
+    },
+    {
+      id: "2",
+      rank: "2nd Engineer",
+      quantity: 2,
+      experience: "3-5 Years",
+      nationality: "Any",
+    },
+  ]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  const handlePositionChange = (
+    id: string,
+    field: keyof CrewPosition,
+    value: string | number
+  ) => {
+    setPositions((prev) =>
+      prev.map((pos) =>
+        pos.id === id
+          ? { ...pos, [field]: field === "quantity" ? parseInt(value as string) : value }
+          : pos
+      )
+    );
+  };
+
+  const addPosition = () => {
+    const newId = (Math.max(...positions.map((p) => parseInt(p.id)), 0) + 1).toString();
+    setPositions((prev) => [
+      ...prev,
+      {
+        id: newId,
+        rank: "Chief Officer",
+        quantity: 1,
+        experience: "5+ Years",
+        nationality: "Any",
+      },
+    ]);
+  };
+
+  const deletePosition = (id: string) => {
+    if (positions.length > 1) {
+      setPositions((prev) => prev.filter((pos) => pos.id !== id));
+    } else {
+      setError("Contract must have at least one position");
+    }
+  };
+
+  const calculateSummary = () => {
+    const totalQuantity = positions.reduce((sum, pos) => sum + pos.quantity, 0);
+    return {
+      totalPositions: positions.length,
+      totalCrew: totalQuantity,
+      duration: `${formData.duration_value} ${formData.duration_unit}`,
+    };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    if (!user?.accessToken) {
+      setError("You must be logged in to create a contract");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formData.vessel_id || !formData.target_start_date || !formData.port_of_embarkation) {
+      setError("Please fill in all required fields");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      // Build positions array - for one-off contracts, use first position as primary
+      const primaryPosition = positions[0];
+      
+      // Map vessel selection to name and type
+      // Options: "1" = MV Atlantic Star (Bulk Carrier), "2" = SS Pacific Voyager (Container Ship), "3" = MV Northern Light (Oil Tanker)
+      const vesselMap: Record<string, { name: string; type: string }> = {
+        "1": { name: "MV Atlantic Star", type: "Bulk Carrier" },
+        "2": { name: "SS Pacific Voyager", type: "Container Ship" },
+        "3": { name: "MV Northern Light", type: "Oil Tanker" },
+      };
+      const selectedVessel = vesselMap[formData.vessel_id] || { name: "New Vessel", type: "General" };
+      
+      // Calculate end date based on target_start_date and duration
+      const targetStartDate = new Date(formData.target_start_date);
+      const endDate = new Date(targetStartDate);
+      const durationNum = parseInt(formData.duration_value);
+      if (formData.duration_unit === "Months") {
+        endDate.setMonth(endDate.getMonth() + durationNum);
+      } else if (formData.duration_unit === "Weeks") {
+        endDate.setDate(endDate.getDate() + durationNum * 7);
+      } else if (formData.duration_unit === "Days") {
+        endDate.setDate(endDate.getDate() + durationNum);
+      }
+      
+      const contractData = {
+        vessel_name: selectedVessel.name,
+        vessel_type: selectedVessel.type,
+        position: primaryPosition.rank, // Primary position
+        position_type: "spot", // One-off contracts are spot contracts
+        target_start_date: formData.target_start_date, // YYYY-MM-DD format from input
+        end_date: endDate.toISOString().split("T")[0], // YYYY-MM-DD format
+        expected_duration_months: durationNum, // Convert to number
+        operational_zone: formData.operational_zone || "Global", // Required field
+        port_of_embarkation: formData.port_of_embarkation,
+        port_of_disembarkation: formData.port_of_disembarkation || "",
+        positions: positions.map((pos) => {
+          // Map position names to rank IDs
+          const rankIdMap: Record<string, string> = {
+            "Master / Captain": "master",
+            "Chief Officer": "chief-officer",
+            "2nd Officer": "second-officer",
+            "3rd Officer": "third-officer",
+            "Chief Engineer": "chief-engineer",
+            "2nd Engineer": "second-engineer",
+            "3rd Engineer": "third-engineer",
+            "Junior Engineer": "junior-engineer",
+          };
+          return {
+            position: pos.rank,
+            rank_id: rankIdMap[pos.rank] || pos.rank.toLowerCase().replace(/ /g, "-"),
+            quantity: pos.quantity,
+            min_experience_years: parseInt(pos.experience.split("+")[0]) || 0,
+            nationality: pos.nationality,
+          };
+        }),
+      };
+
+      console.log("Submitting contract:", contractData);
+
+      const response = await fetch("/api/v1/contracts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify(contractData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          data: errorData,
+        });
+        const errorMsg =
+          errorData.detail ||
+          errorData.message ||
+          errorData.error ||
+          JSON.stringify(errorData) ||
+          `HTTP ${response.status}`;
+        throw new Error(errorMsg);
+      }
+
+      const result = await response.json();
+      console.log("Contract created:", result);
+
+      // Redirect to success page with contract ID
+      router.push(`/shipowner/contract-type/one-off/success?contract_id=${result.id}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to create contract";
+      setError(errorMessage);
+      console.error("Contract creation error:", err);
+      console.error("Error details:", { errorMessage });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const summary = calculateSummary();
+
   return (
     <div className="flex h-screen overflow-hidden font-display text-slate-900 dark:text-white bg-background-light dark:bg-background-dark">
       {/* Sidebar */}
@@ -92,10 +300,10 @@ export default function OneOffContractPage() {
             ></div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                Agent Smith
+                {user?.name || "Agent"}
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Senior Agent
+                Shipowner
               </span>
             </div>
           </div>
@@ -131,14 +339,8 @@ export default function OneOffContractPage() {
             {/* Breadcrumbs and Title */}
             <div className="flex flex-col gap-1 mb-8">
               <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                <Link href="#" className="hover:text-primary transition-colors">
+                <Link href="/shipowner/dashboard" className="hover:text-primary transition-colors">
                   Dashboard
-                </Link>
-                <span className="material-symbols-outlined text-[12px]">
-                  chevron_right
-                </span>
-                <Link href="#" className="hover:text-primary transition-colors">
-                  Contracts
                 </Link>
                 <span className="material-symbols-outlined text-[12px]">
                   chevron_right
@@ -155,6 +357,19 @@ export default function OneOffContractPage() {
                 deployment.
               </p>
             </div>
+
+            {/* Error Alert */}
+            {error && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-red-600 dark:text-red-400">
+                    error
+                  </span>
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                </div>
+              </div>
+            )}
+
             {/* Progress Steps */}
             <div className="mb-10">
               <div className="flex items-center justify-between w-full relative">
@@ -185,8 +400,9 @@ export default function OneOffContractPage() {
                 </div>
               </div>
             </div>
+
             {/* Main Form Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 {/* Vessel & Operation */}
                 <div className="bg-white dark:bg-[#1A2235] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
@@ -206,8 +422,14 @@ export default function OneOffContractPage() {
                         Select Vessel <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <select className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary">
-                          <option disabled selected value="">
+                        <select
+                          name="vessel_id"
+                          value={formData.vessel_id}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+                        >
+                          <option value="">
                             Choose a vessel from your fleet...
                           </option>
                           <option value="1">
@@ -232,10 +454,10 @@ export default function OneOffContractPage() {
                         Contract Reference ID
                       </label>
                       <input
-                        className="w-full rounded-lg bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 cursor-not-allowed font-mono text-sm"
+                        className="w-full rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 cursor-not-allowed font-mono text-sm"
                         readOnly
                         type="text"
-                        value="C-2023-DRAFT-04"
+                        value="C-AUTO-GENERATED"
                       />
                     </div>
                     <div>
@@ -243,13 +465,17 @@ export default function OneOffContractPage() {
                         Operational Zone
                       </label>
                       <input
-                        className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary placeholder-slate-400"
+                        name="operational_zone"
+                        value={formData.operational_zone}
+                        onChange={handleInputChange}
+                        className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary placeholder-slate-400"
                         placeholder="e.g. North Sea"
                         type="text"
                       />
                     </div>
                   </div>
                 </div>
+
                 {/* Duration & Logistics */}
                 <div className="bg-white dark:bg-[#1A2235] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
                   <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
@@ -270,7 +496,11 @@ export default function OneOffContractPage() {
                       </label>
                       <div className="relative">
                         <input
-                          className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
+                          name="target_start_date"
+                          value={formData.target_start_date}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
                           type="date"
                         />
                       </div>
@@ -281,11 +511,19 @@ export default function OneOffContractPage() {
                       </label>
                       <div className="flex">
                         <input
-                          className="w-full rounded-l-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
+                          name="duration_value"
+                          value={formData.duration_value}
+                          onChange={handleInputChange}
+                          className="w-full rounded-l-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
                           placeholder="6"
                           type="number"
                         />
-                        <select className="rounded-r-lg border-l-0 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary px-4">
+                        <select
+                          name="duration_unit"
+                          value={formData.duration_unit}
+                          onChange={handleInputChange}
+                          className="rounded-r-lg border-l-0 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary px-4"
+                        >
                           <option>Months</option>
                           <option>Weeks</option>
                           <option>Days</option>
@@ -294,14 +532,18 @@ export default function OneOffContractPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                        Port of Embarkation
+                        Port of Embarkation <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                           location_on
                         </span>
                         <input
-                          className="w-full pl-10 rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
+                          name="port_of_embarkation"
+                          value={formData.port_of_embarkation}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full pl-10 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
                           placeholder="Search port..."
                           type="text"
                         />
@@ -316,7 +558,10 @@ export default function OneOffContractPage() {
                           location_on
                         </span>
                         <input
-                          className="w-full pl-10 rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
+                          name="port_of_disembarkation"
+                          value={formData.port_of_disembarkation}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
                           placeholder="Search port..."
                           type="text"
                         />
@@ -324,6 +569,7 @@ export default function OneOffContractPage() {
                     </div>
                   </div>
                 </div>
+
                 {/* Crew Composition */}
                 <div className="bg-white dark:bg-[#1A2235] rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
                   <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
@@ -337,12 +583,15 @@ export default function OneOffContractPage() {
                         Crew Composition
                       </h3>
                     </div>
-                    <button className="text-sm text-primary font-semibold hover:underline">
+                    <button
+                      type="button"
+                      className="text-sm text-primary font-semibold hover:underline"
+                    >
                       Bulk Upload CSV
                     </button>
                   </div>
                   <div className="space-y-4">
-                    {/* Crew Position Row 1 */}
+                    {/* Column Headers */}
                     <div className="hidden md:grid grid-cols-12 gap-4 text-xs font-semibold text-slate-500 uppercase tracking-wider px-2">
                       <div className="col-span-4">Position / Rank</div>
                       <div className="col-span-2">Quantity</div>
@@ -350,106 +599,102 @@ export default function OneOffContractPage() {
                       <div className="col-span-2">Nationality Pref.</div>
                       <div className="col-span-1"></div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <div className="col-span-12 md:col-span-4">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Position
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>Master / Captain</option>
-                          <option>Chief Officer</option>
-                          <option>2nd Officer</option>
-                        </select>
+
+                    {/* Crew Position Rows */}
+                    {positions.map((position) => (
+                      <div
+                        key={position.id}
+                        className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700"
+                      >
+                        <div className="col-span-12 md:col-span-4">
+                          <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
+                            Position
+                          </label>
+                          <select
+                            value={position.rank}
+                            onChange={(e) =>
+                              handlePositionChange(position.id, "rank", e.target.value)
+                            }
+                            className="w-full rounded-md bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                          >
+                            <option>Master / Captain</option>
+                            <option>Chief Officer</option>
+                            <option>2nd Officer</option>
+                            <option>Chief Engineer</option>
+                            <option>2nd Engineer</option>
+                            <option>Boatswain</option>
+                            <option>Able Seaman</option>
+                          </select>
+                        </div>
+                        <div className="col-span-6 md:col-span-2">
+                          <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
+                            Qty
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={position.quantity}
+                            onChange={(e) =>
+                              handlePositionChange(position.id, "quantity", e.target.value)
+                            }
+                            className="w-full rounded-md bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                          />
+                        </div>
+                        <div className="col-span-6 md:col-span-3">
+                          <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
+                            Experience
+                          </label>
+                          <select
+                            value={position.experience}
+                            onChange={(e) =>
+                              handlePositionChange(position.id, "experience", e.target.value)
+                            }
+                            className="w-full rounded-md bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                          >
+                            <option>5+ Years</option>
+                            <option>3-5 Years</option>
+                            <option>1-3 Years</option>
+                            <option>No Experience</option>
+                          </select>
+                        </div>
+                        <div className="col-span-12 md:col-span-2">
+                          <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
+                            Nationality
+                          </label>
+                          <select
+                            value={position.nationality}
+                            onChange={(e) =>
+                              handlePositionChange(position.id, "nationality", e.target.value)
+                            }
+                            className="w-full rounded-md bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                          >
+                            <option>Any</option>
+                            <option>Filipino</option>
+                            <option>Indian</option>
+                            <option>Ukrainian</option>
+                            <option>Polish</option>
+                          </select>
+                        </div>
+                        <div className="col-span-12 md:col-span-1 flex justify-end md:justify-center md:pt-2">
+                          <button
+                            type="button"
+                            onClick={() => deletePosition(position.id)}
+                            className="text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                            disabled={positions.length === 1}
+                          >
+                            <span className="material-symbols-outlined">
+                              delete
+                            </span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="col-span-6 md:col-span-2">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Qty
-                        </label>
-                        <input
-                          className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary"
-                          type="number"
-                          defaultValue={1}
-                        />
-                      </div>
-                      <div className="col-span-6 md:col-span-3">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Experience
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>5+ Years</option>
-                          <option>3-5 Years</option>
-                          <option>1-3 Years</option>
-                        </select>
-                      </div>
-                      <div className="col-span-12 md:col-span-2">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Nationality
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>Any</option>
-                          <option>Filipino</option>
-                          <option>Indian</option>
-                          <option>Ukrainian</option>
-                        </select>
-                      </div>
-                      <div className="col-span-12 md:col-span-1 flex justify-end md:justify-center md:pt-2">
-                        <button className="text-slate-400 hover:text-red-500 transition-colors">
-                          <span className="material-symbols-outlined">
-                            delete
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    {/* Crew Position Row 2 */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <div className="col-span-12 md:col-span-4">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Position
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>Chief Engineer</option>
-                          <option selected>2nd Engineer</option>
-                        </select>
-                      </div>
-                      <div className="col-span-6 md:col-span-2">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Qty
-                        </label>
-                        <input
-                          className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary"
-                          type="number"
-                          defaultValue={2}
-                        />
-                      </div>
-                      <div className="col-span-6 md:col-span-3">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Experience
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>5+ Years</option>
-                          <option selected>3-5 Years</option>
-                          <option>1-3 Years</option>
-                        </select>
-                      </div>
-                      <div className="col-span-12 md:col-span-2">
-                        <label className="md:hidden text-xs text-slate-500 font-bold mb-1 block">
-                          Nationality
-                        </label>
-                        <select className="w-full rounded-md border-slate-300 text-sm focus:ring-primary focus:border-primary">
-                          <option>Any</option>
-                          <option>Filipino</option>
-                          <option>Indian</option>
-                        </select>
-                      </div>
-                      <div className="col-span-12 md:col-span-1 flex justify-end md:justify-center md:pt-2">
-                        <button className="text-slate-400 hover:text-red-500 transition-colors">
-                          <span className="material-symbols-outlined">
-                            delete
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                    <button className="w-full py-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-primary hover:border-primary transition-colors flex items-center justify-center gap-2 font-medium bg-slate-50/50 hover:bg-slate-50">
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={addPosition}
+                      className="w-full py-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-primary hover:border-primary transition-colors flex items-center justify-center gap-2 font-medium bg-slate-50/50 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    >
                       <span className="material-symbols-outlined">
                         add_circle
                       </span>
@@ -458,6 +703,7 @@ export default function OneOffContractPage() {
                   </div>
                 </div>
               </div>
+
               {/* Sidebar: Pro Tip & Summary */}
               <div className="space-y-6">
                 <div className="bg-primary text-white rounded-xl shadow-lg shadow-primary/20 p-6 relative overflow-hidden">
@@ -485,7 +731,7 @@ export default function OneOffContractPage() {
                         Total Positions
                       </span>
                       <span className="font-bold text-slate-900 dark:text-white">
-                        3
+                        {summary.totalPositions}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
@@ -493,7 +739,7 @@ export default function OneOffContractPage() {
                         Total Crew Count
                       </span>
                       <span className="font-bold text-slate-900 dark:text-white">
-                        3
+                        {summary.totalCrew}
                       </span>
                     </div>
                     <div className="h-px bg-slate-100 dark:bg-slate-700 my-2"></div>
@@ -502,27 +748,41 @@ export default function OneOffContractPage() {
                         Est. Duration
                       </span>
                       <span className="font-mono text-slate-900 dark:text-white">
-                        6 Months
+                        {summary.duration}
                       </span>
                     </div>
                   </div>
                   <div className="space-y-3">
                     <button
-                      className="w-full py-3 px-4 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2"
-                      onClick={handleSubmit}
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full py-3 px-4 bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2"
                     >
-                      Next Step
-                      <span className="material-symbols-outlined">
-                        arrow_forward
-                      </span>
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          Submit Contract
+                          <span className="material-symbols-outlined">
+                            arrow_forward
+                          </span>
+                        </>
+                      )}
                     </button>
-                    <button className="w-full py-3 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <button
+                      type="button"
+                      className="w-full py-3 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                      disabled={isSubmitting}
+                    >
                       Save Draft
                     </button>
                   </div>
                   <div className="mt-4 text-center">
                     <Link
-                      href="#"
+                      href="/shipowner/dashboard"
                       className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
                     >
                       Cancel and return to dashboard
@@ -530,7 +790,7 @@ export default function OneOffContractPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </main>

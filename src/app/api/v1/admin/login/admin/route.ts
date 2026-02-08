@@ -1,64 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  verifyAdminCredentials,
-  NotImplementedError,
-} from "../../../../../../lib/adminData";
-import auth from "../../../../../../lib/auth";
 
-export async function POST(req: NextRequest) {
-  const url = new URL(req.url);
-  const email = url.searchParams.get("email") || "";
-  const password = url.searchParams.get("password") || "";
+// Use environment variable for flexibility - NO TRAILING SPACES!
+const API_BASE_URL = process.env.BACKEND_URL || "http://127.0.0.1:8000/api/v1";
 
-  if (!email || !password) {
-    return NextResponse.json(
-      {
-        detail: [
-          {
-            loc: ["query", "email/password"],
-            msg: "Both email and password query parameters are required",
-            type: "validation_error",
-          },
-        ],
-      },
-      { status: 422 }
-    );
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    const valid = await verifyAdminCredentials(email, password);
-    // verifyAdminCredentials should return an object with at least { email, role }
-    if (!valid || valid.role !== "admin") {
+    // Parse query parameters from the request URL
+    const searchParams = request.nextUrl.searchParams;
+    const email = searchParams.get("email");
+    const password = searchParams.get("password");
+
+    if (!email || !password) {
       return NextResponse.json(
-        { detail: "Invalid admin credentials" },
-        { status: 401 }
+        { detail: "Email and password are required" },
+        { status: 400 },
       );
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return NextResponse.json(
-        { detail: "JWT signing not configured (JWT_SECRET missing)" },
-        { status: 501 }
-      );
-    }
-
-    const payload = {
-      sub: valid.email,
-      role: valid.role,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-    };
-    const access_token = auth.signJwt(payload, secret);
-    return NextResponse.json(
-      { access_token, token_type: "bearer" },
-      { status: 200 }
+    console.log(
+      "📡 Forwarding admin login request to:",
+      `${API_BASE_URL}/admin/login/admin`,
     );
-  } catch (err: unknown) {
-    if (err instanceof NotImplementedError) {
-      const message = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ detail: message }, { status: 501 });
+    console.log("📧 Email:", email);
+
+    // Call the backend admin endpoint with query parameters
+    const response = await fetch(
+      `${API_BASE_URL}/admin/login/admin?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    );
+
+    console.log("📡 Backend response status:", response.status);
+
+    // Try to parse response as JSON
+    const text = await response.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { detail: text || "Unknown response from server" };
     }
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ detail: message }, { status: 500 });
+
+    return NextResponse.json(data, { status: response.status });
+  } catch (error) {
+    console.error("Admin login proxy error:", error);
+    return NextResponse.json(
+      { detail: "Failed to connect to the authentication server." },
+      { status: 500 },
+    );
   }
 }

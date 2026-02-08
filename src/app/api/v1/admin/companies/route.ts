@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../lib/externalApiToken";
 
 const API_BASE_URL = "https://crewing-mvp.onrender.com/api/v1";
 
@@ -14,15 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the external API token
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 }
-      );
-    }
-
-    console.log('Companies API - Fetching from external API');
+    const externalApiToken = await getExternalApiToken();
 
     // Fetch all companies from external API
     const response = await fetch(`${API_BASE_URL}/admin/companies`, {

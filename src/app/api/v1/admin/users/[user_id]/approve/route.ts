@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../../lib/auth";
-import {
-  approveUser,
-  NotImplementedError,
-} from "../../../../../../../lib/adminData";
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ user_id: string }> }
+  { params }: { params: Promise<{ user_id: string }> },
 ) {
   const check = auth.requireAdmin(req as unknown as Request);
   if (!check.ok) {
     return NextResponse.json(
       { detail: check.detail },
-      { status: check.status }
+      { status: check.status },
     );
   }
 
@@ -29,21 +26,49 @@ export async function POST(
           },
         ],
       },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
   try {
-    await approveUser(user_id);
+    console.log(`🔍 Approve route called for user: ${user_id}`);
+    
+    // Get token from external API
+    const externalApiToken = await getExternalApiToken();
+    
+    // Call external API to approve the seafarer
+    const approveUrl = `https://crewing-mvp.onrender.com/api/v1/admin/users/${user_id}/approve`;
+    
+    const response = await fetch(approveUrl, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${externalApiToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(
+        `❌ Failed to approve user via external API: ${response.status}`,
+        errorData,
+      );
+      return NextResponse.json(
+        { detail: errorData.detail || "Failed to approve user" },
+        { status: response.status },
+      );
+    }
+
+    const result = await response.json();
+    console.log(`✅ User ${user_id} approved successfully`);
+    
     return NextResponse.json(
-      { message: "Seafarer profile approved" },
-      { status: 200 }
+      { message: "Seafarer profile approved", ...result },
+      { status: 200 },
     );
   } catch (err: unknown) {
-    if (err instanceof NotImplementedError) {
-      return NextResponse.json({ detail: err.message }, { status: 501 });
-    }
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Error approving user: ${message}`);
     return NextResponse.json({ detail: message }, { status: 500 });
   }
 }

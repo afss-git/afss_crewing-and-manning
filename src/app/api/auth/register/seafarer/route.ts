@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getExternalApiToken } from "../../../../../lib/externalApiToken";
 
 const prisma = new PrismaClient();
 
@@ -18,15 +19,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get external API token
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-    if (!externalApiToken) {
-      console.error("EXTERNAL_API_TOKEN not configured");
-      return NextResponse.json(
-        { detail: "Server configuration error" },
-        { status: 500 },
-      );
-    }
+    // Get external API token (auto-refreshes if expired)
+    const externalApiToken = await getExternalApiToken();
 
     // Call external API for registration and email verification
     try {

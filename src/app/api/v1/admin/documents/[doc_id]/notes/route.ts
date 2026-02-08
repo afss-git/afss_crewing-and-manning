@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../../lib/auth";
-import {
-  updateDocumentNotes,
-  NotImplementedError,
-} from "../../../../../../../lib/adminData";
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ doc_id: string }> }
+  { params }: { params: Promise<{ doc_id: string }> },
 ) {
   const check = auth.requireAdmin(req as unknown as Request);
   if (!check.ok) {
     return NextResponse.json(
       { detail: check.detail },
-      { status: check.status }
+      { status: check.status },
     );
   }
 
@@ -29,7 +26,7 @@ export async function PUT(
           },
         ],
       },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
@@ -47,7 +44,7 @@ export async function PUT(
           },
         ],
       },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
@@ -67,22 +64,51 @@ export async function PUT(
           },
         ],
       },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
   try {
+    console.log(`🔍 Update notes route called for document: ${doc_id}`);
+
     const notes = (body as Record<string, unknown>)["notes"] as string;
-    const updated = await updateDocumentNotes(doc_id, notes);
+    const externalApiToken = await getExternalApiToken();
+
+    const externalResponse = await fetch(
+      `https://crewing-mvp.onrender.com/api/v1/admin/documents/${doc_id}/notes`,
+      {
+        method: "PUT",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${externalApiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes }),
+      },
+    );
+
+    if (!externalResponse.ok) {
+      const errorData = await externalResponse.json().catch(() => ({}));
+      console.error(
+        `❌ External API notes update failed: ${externalResponse.status}`,
+        errorData,
+      );
+      return NextResponse.json(
+        { detail: errorData.detail || "Failed to update notes" },
+        { status: externalResponse.status },
+      );
+    }
+
+    const result = await externalResponse.json();
+    console.log(`✅ Document ${doc_id} notes updated successfully`);
+
     return NextResponse.json(
-      { message: "Document notes updated", document: updated },
-      { status: 200 }
+      { message: "Document notes updated", ...result },
+      { status: 200 },
     );
   } catch (err: unknown) {
-    if (err instanceof NotImplementedError) {
-      return NextResponse.json({ detail: err.message }, { status: 501 });
-    }
     const message = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Error updating document notes: ${message}`);
     return NextResponse.json({ detail: message }, { status: 500 });
   }
 }

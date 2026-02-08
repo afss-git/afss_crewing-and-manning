@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
 
 export async function POST(
   req: NextRequest,
@@ -25,15 +26,8 @@ export async function POST(
       );
     }
 
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 }
-      );
-    }
+    // Get the external API token (auto-refreshes if expired)
+    const externalApiToken = await getExternalApiToken();
 
     // Get the FormData from the request
     const formData = await req.formData();

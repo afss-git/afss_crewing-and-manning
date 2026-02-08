@@ -54,10 +54,11 @@ export default function ShipOwnerDocuments({
       }
 
       if (!response.ok) {
-        throw new Error("Failed to load documents");
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const data: DocumentData[] = await response.json();
+      console.log("Documents API response:", data);
       setDocuments(data);
     } catch (error) {
       console.error("Documents fetch error:", error);
@@ -67,16 +68,21 @@ export default function ShipOwnerDocuments({
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
+  const formatFileSize = (bytes?: number | null): string => {
+    if (bytes === undefined || bytes === null) return '—';
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+    if (!isFinite(i) || i < 0) return '—';
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (dateString?: string | null): string => {
+    if (!dateString) return 'Unknown';
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return 'Unknown';
+    return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -201,65 +207,68 @@ export default function ShipOwnerDocuments({
       )}
 
       <div className="space-y-3">
-        {displayDocuments.map((document) => (
-          <div
-            key={document.id}
-            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-xl">
-                    description
-                  </span>
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm font-medium text-text-main dark:text-white truncate">
-                    {document.filename}
-                  </p>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(document.status)}`}
-                  >
-                    <span className={`material-symbols-outlined text-sm mr-1 ${document.status === 'approved' ? 'icon-fill' : ''}`}>
-                      {getStatusIcon(document.status)}
+        {displayDocuments.map((document) => {
+          const status = document.status ?? "pending";
+          const statusLabel = status
+            ? status.charAt(0).toUpperCase() + status.slice(1)
+            : "Unknown";
+
+          return (
+            <div
+              key={document.id}
+              className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-primary text-xl">description</span>
+                  </div>
+
+                  <div className="mt-2">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(
+                        status
+                      )}`}
+                    >
+                      <span
+                        className={`material-symbols-outlined text-sm mr-1 ${
+                          status === "approved" ? "icon-fill" : ""
+                        }`}
+                      >
+                        {getStatusIcon(status)}
+                      </span>
+                      {statusLabel}
                     </span>
-                    {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-4 mt-1">
-                  <p className="text-xs text-text-secondary">
-                    {document.doc_type}
-                  </p>
-                  <p className="text-xs text-text-secondary">
-                    {formatFileSize(document.size)}
-                  </p>
-                  <p className="text-xs text-text-secondary">
-                    Uploaded {formatDate(document.uploaded_at)}
-                  </p>
+                  </div>
+
+                  <div className="flex items-center space-x-4 mt-3">
+                    <p className="text-xs text-text-secondary">{document.doc_type}</p>
+                    <p className="text-xs text-text-secondary">{formatFileSize(document.size)}</p>
+                    <p className="text-xs text-text-secondary">Uploaded {formatDate(document.uploaded_at)}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleDownload(document)}
-                className="p-2 text-text-secondary hover:text-primary dark:hover:text-red-400 transition-colors"
-                title="Download"
-              >
-                <span className="material-symbols-outlined text-lg">download</span>
-              </button>
-              {!compact && (
+
+              <div className="flex items-center space-x-2">
                 <button
+                  onClick={() => handleDownload(document)}
                   className="p-2 text-text-secondary hover:text-primary dark:hover:text-red-400 transition-colors"
-                  title="More options"
+                  title="Download"
                 >
-                  <span className="material-symbols-outlined text-lg">more_vert</span>
+                  <span className="material-symbols-outlined text-lg">download</span>
                 </button>
-              )}
+                {!compact && (
+                  <button
+                    className="p-2 text-text-secondary hover:text-primary dark:hover:text-red-400 transition-colors"
+                    title="More options"
+                  >
+                    <span className="material-symbols-outlined text-lg">more_vert</span>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {maxItems && documents.length > maxItems && (

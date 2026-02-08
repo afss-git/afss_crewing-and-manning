@@ -1,18 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function ContractTypePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
+
+  // Check if shipowner has a profile; if not, redirect to create one
+  useEffect(() => {
+    const checkProfile = async () => {
+      if (!user?.accessToken) {
+        setIsCheckingProfile(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/v1/profile", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        // If 404, profile doesn't exist
+        if (response.status === 404) {
+          console.warn("Shipowner profile not found, redirecting to create");
+          router.push("/shipowner/profile/create");
+          return;
+        }
+
+        if (!response.ok) {
+          console.error("Error checking profile:", response.status);
+          // On error, allow page to load but log the issue
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        // Allow page to load on error
+      } finally {
+        setIsCheckingProfile(false);
+      }
+    };
+
+    checkProfile();
+  }, [user?.accessToken, router]);
+
+  useEffect(() => {
+    // Clear the profile creation flag so user can go back if needed
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("shipowner_profile_created");
+    }
+  }, []);
 
   const handleSelect = (type: string) => {
     setSelected(type);
+    // Mark that we're selecting a contract type to prevent profile check redirect
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("selecting_contract_type", "true");
+    }
     if (type === "oneoff") {
-      router.push("/shipowner/fleet-details?type=oneoff");
+      router.push("/shipowner/contract-type/one-off");
     } else if (type === "full") {
-      router.push("/shipowner/fleet-details?type=full");
+      router.push("/shipowner/contract-type/full");
     }
   };
 
@@ -50,6 +103,21 @@ export default function ContractTypePage() {
       </header>
       <main className="flex flex-1 flex-col items-center justify-start px-4 py-8 md:px-10 lg:py-12">
         <div className="w-full max-w-[1024px] space-y-10">
+          {/* Loading State */}
+          {isCheckingProfile && (
+            <div className="bg-surface-light dark:bg-surface-dark p-8 rounded-xl border border-[#e8ebf3] dark:border-gray-800">
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-3 text-text-secondary">
+                  Verifying your profile...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Contract Selection (hidden while loading) */}
+          {!isCheckingProfile && (
+            <>
           {/* Progress Bar */}
           <div className="flex flex-col gap-3">
             <div className="flex gap-6 justify-between items-end">
@@ -266,11 +334,15 @@ export default function ContractTypePage() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       </main>
       {/* Footer */}
       <footer className="mt-auto py-8 px-10 text-center text-sm text-text-secondary">
-        <p>© {new Date().getFullYear()} CrewManage. All maritime rights reserved.</p>
+        <p>
+          © {new Date().getFullYear()} CrewManage. All maritime rights reserved.
+        </p>
         <div className="mt-2 flex justify-center gap-4">
           <a className="hover:text-primary" href="#">
             Privacy Policy

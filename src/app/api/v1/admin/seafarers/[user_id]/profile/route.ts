@@ -1,7 +1,14 @@
+// app/api/admin/seafarers/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import auth from "../../../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../../../lib/externalApiToken";
+import { getPresignedUrl } from "../../../../../../../lib/r2";
 
-const API_BASE_URL = "https://crewing-mvp.onrender.com/api/v1";
+const EXTERNAL_API_BASE_URL =
+  process.env.EXTERNAL_API_BASE_URL?.trim() ||
+  "https://crewing-mvp.onrender.com";
+const API_BASE_URL = `${EXTERNAL_API_BASE_URL}/api/v1`;
+
+console.log("🔧 Using external API base:", API_BASE_URL);
 
 interface Document {
   id: number;
@@ -16,116 +23,202 @@ interface Document {
   created_at: string;
 }
 
-interface SeafarerData {
+interface SeafarerProfile {
   documents?: Document[];
+  profile?: {
+    profile_photo_url?: string;
+    [key: string]: unknown;
+  };
+  user_id?: number | string;
   [key: string]: unknown;
 }
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ user_id: string }> },
+  { params }: { params: Promise<Record<string, string>> },
 ) {
-  const check = auth.requireAdmin(req as unknown as Request);
-  if (!check.ok) {
-    return NextResponse.json(
-      { detail: check.detail },
-      { status: check.status },
-    );
-  }
-
-  const { user_id } = await params;
-  if (!user_id) {
-    return NextResponse.json(
-      {
-        detail: [
-          {
-            loc: ["path", "user_id"],
-            msg: "user_id is required",
-            type: "validation_error",
-          },
-        ],
-      },
-      { status: 422 },
-    );
-  }
-
   try {
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
+    const resolvedParams = await params;
+    // Support both possible param names: `id` (used in some routes) and `user_id` (folder name here)
+    const rawId = (resolvedParams.id ?? resolvedParams.user_id ?? resolvedParams.userId) as
+      | string
+      | undefined;
 
-    if (!externalApiToken) {
+    if (!rawId || rawId.trim() === "") {
       return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 },
+        {
+          detail: "Seafarer ID is required in the URL path",
+        },
+        { status: 400 },
       );
     }
 
-    // Use the direct seafarer profile endpoint
-    const response = await fetch(`${API_BASE_URL}/admin/seafarers/${user_id}`, {
+    const user_id = rawId.trim(); // keep as string — let backend validate
+    console.log(`📥 Fetching seafarer profile for ID: ${user_id}`);
+
+    // Get fresh token
+    let externalApiToken: string;
+    try {
+      externalApiToken = await getExternalApiToken();
+    } catch (tokenErr) {
+      console.error("Failed to obtain external API token:", tokenErr);
+      return NextResponse.json(
+        { detail: "Authentication service unavailable" },
+        { status: 503 },
+      );
+    }
+
+    const externalUrl = `${API_BASE_URL}/admin/seafarers/${user_id}`;
+    console.log(`→ Proxying GET to: ${externalUrl}`);
+
+    const externalRes = await fetch(externalUrl, {
       method: "GET",
       headers: {
-        accept: "application/json",
+        Accept: "application/json",
         Authorization: `Bearer ${externalApiToken}`,
       },
+      // no cache — always fresh for admin
+      cache: "no-store",
     });
 
-    if (!response.ok) {
-      console.error(
-        "External API error:",
-        response.status,
-        response.statusText,
-      );
+    if (!externalRes.ok) {
+      let errorBody: any = {};
+      try {
+        errorBody = await externalRes.json();
+      } catch {}
+
+      const status = externalRes.status;
+      const message =
+        errorBody.detail ||
+        errorBody.message ||
+        errorBody.error ||
+        `External API returned ${status}`;
+
+      console.warn(`External API failed: ${status} – ${message}`);
+
+      // Pass through known status codes cleanly
+      if (status === 401) {
+        return NextResponse.json(
+          { detail: "Unauthorized – invalid or expired token" },
+          { status: 401 },
+        );
+      }
+      if (status === 403) {
+        return NextResponse.json(
+          { detail: "Forbidden – insufficient permissions" },
+          { status: 403 },
+        );
+      }
+      if (status === 404) {
+        return NextResponse.json(
+          { detail: "Seafarer not found" },
+          { status: 404 },
+        );
+      }
+      if (status === 400) {
+        return NextResponse.json(
+          { detail: message || "Invalid request (validation error)" },
+          { status: 400 },
+        );
+      }
+
+      // For all other errors → 502 Bad Gateway (proxy failure)
       return NextResponse.json(
-        { detail: `External API error: ${response.status}` },
-        { status: response.status },
+        {
+          detail: `External service error: ${message}`,
+          status: status,
+        },
+        { status: 502 },
       );
     }
 
-    const seafarerData: SeafarerData = await response.json();
-
-    // Log document information for debugging
-    if (seafarerData && seafarerData.documents) {
-      console.log(
-        `📋 Seafarer ${user_id} has ${seafarerData.documents.length} documents from external API`,
+    let data: SeafarerProfile;
+    try {
+      data = await externalRes.json();
+    } catch (parseErr) {
+      console.error("Failed to parse external JSON response:", parseErr);
+      return NextResponse.json(
+        { detail: "Invalid response format from external service" },
+        { status: 502 },
       );
+    }
 
-      // Check for duplicate document IDs
-      const documentIds = seafarerData.documents.map((doc: Document) => doc.id);
-      const uniqueIds = [...new Set(documentIds)];
+    // ── Document deduplication & presigning ────────────────────────────────
+    if (data?.documents && Array.isArray(data.documents)) {
+      console.log(`Found ${data.documents.length} documents`);
 
-      if (documentIds.length !== uniqueIds.length) {
-        console.warn(
-          `⚠️  DUPLICATE DOCUMENTS DETECTED: ${documentIds.length} total, ${uniqueIds.length} unique`,
-        );
-        console.log("Document IDs:", documentIds);
-        console.log("Unique IDs:", uniqueIds);
+      // Deduplicate by id
+      const seen = new Set<number>();
+      data.documents = data.documents.filter((doc: Document) => {
+        if (seen.has(doc.id)) {
+          console.warn(`Duplicate document ID removed: ${doc.id}`);
+          return false;
+        }
+        seen.add(doc.id);
+        return true;
+      });
 
-        // Remove duplicates by filtering to unique IDs only
-        const seenIds = new Set<number>();
-        seafarerData.documents = seafarerData.documents.filter(
-          (doc: Document) => {
-            if (seenIds.has(doc.id)) {
-              console.log(`🗑️  Removing duplicate document ID: ${doc.id}`);
-              return false;
+      // Presign file_urls (only if R2 configured)
+      if (process.env.R2_BUCKET && process.env.R2_ENDPOINT) {
+        await Promise.allSettled(
+          data.documents.map(async (doc) => {
+            if (!doc.file_url) return;
+            try {
+              const urlObj = new URL(doc.file_url);
+              let key = urlObj.pathname.replace(/^\/+/, "");
+
+              // Strip bucket prefix if present
+              const bucketPrefix = `${process.env.R2_BUCKET}/`;
+              if (key.startsWith(bucketPrefix)) {
+                key = key.slice(bucketPrefix.length);
+              }
+
+              if (!key) return;
+
+              const presigned = await getPresignedUrl(key, 300); // 5 min expiry
+              doc.file_url = presigned;
+              console.log(`Presigned document ${doc.id} → ${key}`);
+            } catch (presignErr) {
+              console.warn(`Presign failed for doc ${doc.id}:`, presignErr);
+              // keep original URL as fallback
             }
-            seenIds.add(doc.id);
-            return true;
-          },
+          }),
         );
-
-        console.log(
-          `✅ After deduplication: ${seafarerData.documents.length} documents`,
-        );
-      } else {
-        console.log(`✅ No duplicates found in documents`);
       }
     }
 
-    // Return the complete seafarer profile with detailed structure
-    return NextResponse.json(seafarerData, { status: 200 });
+    // ── Presign profile photo ──────────────────────────────────────────────
+    if (
+      data?.profile?.profile_photo_url &&
+      process.env.R2_BUCKET &&
+      process.env.R2_ENDPOINT
+    ) {
+      try {
+        const urlObj = new URL(data.profile.profile_photo_url);
+        let key = urlObj.pathname.replace(/^\/+/, "");
+        const bucketPrefix = `${process.env.R2_BUCKET}/`;
+        if (key.startsWith(bucketPrefix)) {
+          key = key.slice(bucketPrefix.length);
+        }
+
+        if (key) {
+          const presigned = await getPresignedUrl(key, 300);
+          data.profile.profile_photo_url = presigned;
+          console.log(`Presigned profile photo → ${key}`);
+        }
+      } catch (photoErr) {
+        console.warn("Profile photo presign failed:", photoErr);
+      }
+    }
+
+    console.log(`✅ Seafarer ${user_id} profile fetched successfully`);
+    return NextResponse.json(data);
   } catch (err: unknown) {
-    console.error("Admin seafarer profile fetch error:", err);
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("Critical error in /admin/seafarers/[id]:", err);
+    const message =
+      err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ detail: message }, { status: 500 });
   }
 }

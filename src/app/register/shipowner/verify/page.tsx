@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function ShipOwnerVerifyPage() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -23,7 +25,8 @@ export default function ShipOwnerVerifyPage() {
     }
     // TODO: Add real verification logic
     setIsVerifying(false);
-    alert("Email verified!");
+    // After successful verification, redirect to profile creation
+    router.push("/shipowner/profile/create");
   };
 
   const handleResend = async () => {

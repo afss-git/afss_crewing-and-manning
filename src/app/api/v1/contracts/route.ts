@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
-
-interface JWTPayload {
-  id: number;
-  email: string;
-  role?: string;
-}
+import { getExternalApiToken } from "@/lib/externalApiToken";
 
 export const dynamic = "force-dynamic";
 
@@ -21,33 +14,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Extract token (from external API) - no local verification needed
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    const userId = decoded.id;
+    console.log(`🔗 Fetching contracts with external API token...`);
 
-    const contracts = await prisma.contract.findMany({
-      where: {
-        shipOwner: {
-          userId: userId,
+    // Pass the user's token directly to external API
+    const externalResponse = await fetch(
+      "https://crewing-mvp.onrender.com/api/v1/contracts",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${token}`,
         },
       },
-      include: {
-        shipOwner: {
-          select: {
-            companyName: true,
-            user: {
-              select: {
-                email: true,
-              },
-            },
-          },
-        },
-        positions: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    );
+
+    if (!externalResponse.ok) {
+      console.error(`❌ External API error: ${externalResponse.status}`);
+      return NextResponse.json(
+        { detail: `External API error: ${externalResponse.status}` },
+        { status: externalResponse.status },
+      );
+    }
+
+    const contracts = await externalResponse.json();
+    console.log(`✅ Successfully fetched contracts from external API`);
 
     return NextResponse.json(contracts, { status: 200 });
   } catch (error) {
@@ -70,77 +62,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract token (from external API) - no local verification needed
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
-    const userId = decoded.id;
+    console.log(`🔗 Creating contract for authenticated user...`);
 
-    // Verify user is a shipowner
-    const shipOwner = await prisma.shipOwner.findUnique({
-      where: { userId: userId },
-    });
+    const body = await request.json();
+    console.log(
+      `📤 Sending contract data to external API:`,
+      JSON.stringify(body, null, 2)
+    );
 
-    if (!shipOwner) {
+    const externalResponse = await fetch(
+      "https://crewing-mvp.onrender.com/api/v1/contracts",
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    const responseText = await externalResponse.text();
+    console.log(
+      `📥 External API response status: ${externalResponse.status}`,
+      `Content-Type: ${externalResponse.headers.get("content-type")}`,
+      `Response text: ${responseText.substring(0, 500)}`
+    );
+
+    if (!externalResponse.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { raw: responseText };
+      }
+      console.error(
+        `❌ External API error: ${externalResponse.status}`,
+        JSON.stringify(errorData, null, 2),
+      );
       return NextResponse.json(
-        { detail: "Shipowner profile not found" },
-        { status: 404 },
+        {
+          detail:
+            errorData.detail ||
+            errorData.message ||
+            errorData.error ||
+            responseText ||
+            "Failed to create contract",
+        },
+        { status: externalResponse.status },
       );
     }
 
-    const body = await request.json();
-    const {
-      vesselName,
-      vesselImoNumber,
-      position,
-      positionType,
-      startDate,
-      endDate,
-      duration,
-      requiredCertifications,
-      dayRate,
-      clientName,
-      clientCompany,
-      specificInstructions,
-    } = body;
-
-    // Generate unique contract ID
-    const contractId = `CT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-    const contract = await prisma.contract.create({
-      data: {
-        shipOwnerId: shipOwner.id,
-        contractId,
-        vesselName,
-        vesselImoNumber,
-        position,
-        positionType,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        duration,
-        requiredCertifications,
-        dayRate,
-        clientName,
-        clientCompany,
-        specificInstructions,
-      },
-      include: {
-        shipOwner: {
-          select: {
-            companyName: true,
-            user: {
-              select: {
-                email: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const contract = JSON.parse(responseText);
+    console.log(`✅ Contract created successfully:`, contract);
 
     return NextResponse.json(contract, { status: 201 });
   } catch (error) {
     console.error("Create contract error:", error);
+    const errorMsg =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { detail: "Failed to create contract" },
+      { detail: errorMsg },
       { status: 500 },
     );
   }

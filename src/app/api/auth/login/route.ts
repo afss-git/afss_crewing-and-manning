@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL = "https://crewing-mvp.onrender.com/api/v1";
+// Use environment variable for flexibility - NO TRAILING SPACES!
+const API_BASE_URL =
+  process.env.BACKEND_URL || "https://crewing-mvp.onrender.com/api/v1";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +14,12 @@ export async function POST(request: NextRequest) {
     formData.append("email", email);
     formData.append("password", password);
 
+    console.log(
+      "📡 Forwarding login request to:",
+      `${API_BASE_URL}/auth/login`,
+    );
+    console.log("📧 Email:", email);
+
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: {
@@ -20,6 +28,8 @@ export async function POST(request: NextRequest) {
       },
       body: formData.toString(),
     });
+
+    console.log("📡 Backend response status:", response.status);
 
     // Try to parse response as JSON
     const text = await response.text();
@@ -35,7 +45,7 @@ export async function POST(request: NextRequest) {
     console.error("Login proxy error:", error);
     return NextResponse.json(
       { detail: "Failed to connect to the authentication server." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import auth from "../../../../../../lib/auth";
+import { getExternalApiToken } from "../../../../../../lib/externalApiToken";
 
 interface ExternalContract {
   id: number;
@@ -36,15 +37,8 @@ export async function GET(
   try {
     const { contract_id } = await params;
 
-    // Get the external API token from environment variables
-    const externalApiToken = process.env.EXTERNAL_API_TOKEN;
-
-    if (!externalApiToken) {
-      return NextResponse.json(
-        { detail: "External API token not configured" },
-        { status: 500 },
-      );
-    }
+    // Get the external API token
+    const externalApiToken = await getExternalApiToken();
 
     // First, get all contracts to find the one with the matching ID
     const allContractsResponse = await fetch(
