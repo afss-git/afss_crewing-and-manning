@@ -123,7 +123,7 @@ export default function DashboardPage() {
 
       setDocumentsLoading(true);
       try {
-        const response = await fetch('/api/v1/seafarers/documents', {
+        const response = await fetch('/api/seafarer/documents', {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -1014,7 +1014,7 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="flex flex-col">
                                   <span className="font-medium text-gray-900 dark:text-white">
-                                    {DOCUMENT_NAMES[doc.document_type] || doc.document_type}
+                                    {DOCUMENT_NAMES[doc.document_type || (doc as any).doc_type || (doc as any).custom_title] || doc.document_type || (doc as any).doc_type || (doc as any).custom_title || 'Document'}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {doc.file_size || 'File uploaded'}
@@ -1044,12 +1044,12 @@ export default function DashboardPage() {
                                   onClick={() => {
                                     setPreviewDocument({
                                       id: doc.id,
-                                      document_type: doc.document_type,
+                                      document_type: doc.document_type || (doc as any).doc_type || (doc as any).custom_title,
                                       status: doc.status,
                                       file_size: doc.file_size,
                                       expiry_date: doc.expiry_date,
-                                      file_url: doc.id.startsWith('missing-') ? undefined : `/api/v1/seafarers/documents/${doc.id}/download`,
-                                      file_name: DOCUMENT_NAMES[doc.document_type] || doc.document_type
+                                      file_url: (doc as any).file_url || (doc.id && !String(doc.id).startsWith('missing-') ? `/api/seafarer/documents/${doc.id}/download` : undefined),
+                                      file_name: DOCUMENT_NAMES[doc.document_type || (doc as any).doc_type || (doc as any).custom_title] || doc.document_type || (doc as any).doc_type || (doc as any).custom_title || 'Document'
                                     });
                                   }}
                                   className="text-primary hover:text-primary-hover text-sm font-medium"
