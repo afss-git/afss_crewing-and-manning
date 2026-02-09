@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import React, { useEffect, useState, Suspense, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -35,6 +35,107 @@ interface ContractData {
   port_of_disembarkation: string;
   positions: ContractPosition[];
 }
+
+// Inline Sidebar Component to avoid import issues
+const Sidebar: React.FC<{ active: string }> = ({ active }) => {
+  return (
+    <aside className="w-64 flex-shrink-0 bg-white dark:bg-[#1A2235] border-r border-slate-200 dark:border-slate-800 flex flex-col h-full transition-colors duration-300">
+      <div className="h-16 flex items-center px-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight">
+          <span className="material-symbols-outlined text-3xl icon-fill">
+            anchor
+          </span>
+          MaritimeOps
+        </div>
+      </div>
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Menu
+        </div>
+        <Link
+          href="/shipowner/dashboard"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
+            active === "dashboard"
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
+          }`}
+        >
+          <span className="material-symbols-outlined">grid_view</span>
+          Dashboard
+        </Link>
+        <Link
+          href="/shipowner/contract-type"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
+            active === "contract"
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
+          }`}
+        >
+          <span className="material-symbols-outlined icon-fill">
+            description
+          </span>
+          Contracts
+        </Link>
+        <Link
+          href="#"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium group"
+        >
+          <span className="material-symbols-outlined">toc</span>
+          Contract List
+        </Link>
+        <Link
+          href="#"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium group"
+        >
+          <span className="material-symbols-outlined">groups</span>
+          Crew Management
+        </Link>
+        <Link
+          href="#"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium group"
+        >
+          <span className="material-symbols-outlined">sailing</span>
+          Vessels
+        </Link>
+        <div className="px-3 mt-6 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          System
+        </div>
+        <Link
+          href="#"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium group"
+        >
+          <span className="material-symbols-outlined">settings</span>
+          Settings
+        </Link>
+        <Link
+          href="#"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors font-medium group"
+        >
+          <span className="material-symbols-outlined">help</span>
+          Help & Support
+        </Link>
+      </nav>
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/default-shipowner-avatar.jpg')",
+            }}
+          ></div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">
+              Agent Smith
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Senior Agent
+            </span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+};
 
 function ContractDetailContent() {
   const searchParams = useSearchParams();
@@ -74,7 +175,7 @@ function ContractDetailContent() {
           }
 
           const data = await response.json();
-          console.log("Contract data:", data);
+          console.log("Contract ", data);
           setContract(data);
 
           // Fetch seafarers if contract is approved
@@ -110,7 +211,7 @@ function ContractDetailContent() {
         }
 
         const data = await response.json();
-        console.log("Seafarers data:", data);
+        console.log("Seafarers ", data);
         setSeafarers(Array.isArray(data) ? data : []);
       } catch (err: any) {
         console.error("Seafarers fetch error:", err);
@@ -584,7 +685,12 @@ export default function ContractDetail() {
           {/* Sidebar Panel */}
           <div className="relative w-64 bg-white dark:bg-[#1A2235] h-full shadow-xl border-r border-slate-200 dark:border-slate-800">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <h2 className="font-bold text-slate-900 dark:text-white">Menu</h2>
+              <div className="flex items-center gap-2 text-primary font-bold text-lg tracking-tight">
+                <span className="material-symbols-outlined text-2xl icon-fill">
+                  anchor
+                </span>
+                MaritimeOps
+              </div>
               <button
                 onClick={() => setIsSidebarOpen(false)}
                 className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
