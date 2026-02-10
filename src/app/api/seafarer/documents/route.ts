@@ -96,27 +96,71 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${API_BASE_URL}/seafarers/documents`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-        Accept: "application/json",
-      },
-    });
+    // Use AbortController with a 10-second timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}/seafarers/documents`, {
+        method: "GET",
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      clearTimeout(timeout);
+
+      const contentType = response.headers.get("content-type");
+      let data;
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        data = { documents: [] };
+      }
+
+      if (!response.ok) {
+        console.error("Backend returned error:", response.status, data);
+        // Return empty array instead of error to prevent redirect
+        return NextResponse.json({ documents: [] }, { status: 200 });
+      }
+
+      // Validate response structure - check if it's actually documents
+      // Documents should have fields like: id, document_type, status, created_at, etc.
+      // If we get something else (like user objects with user_id, email, etc.), it's an error
+      const isDocumentsArray = Array.isArray(data) && data.length > 0 && 
+        (data[0].document_type || data[0].id && data[0].status);
+      
+      const isDocumentsObject = data && typeof data === 'object' && data.documents && 
+        Array.isArray(data.documents);
+      
+      if (!isDocumentsArray && !isDocumentsObject) {
+        // Check if we got user objects instead of documents
+        if (Array.isArray(data) && data.length > 0 && data[0].user_id) {
+          console.warn("⚠️ Backend /api/v1/seafarers/documents returned user objects instead of documents. This is a backend configuration error.");
+          return NextResponse.json({ documents: [] }, { status: 200 });
+        }
+        // For any other unexpected structure, return empty
+        console.warn("Unexpected response structure from backend documents endpoint:", data);
+      }
+
+      return NextResponse.json(data);
+    } catch (fetchError: any) {
+      clearTimeout(timeout);
+      
+      if (fetchError.name === 'AbortError') {
+        console.error("Document fetch timeout - backend took too long to respond");
+        // Return empty array on timeout instead of error
+        return NextResponse.json({ documents: [] }, { status: 200 });
+      }
+      throw fetchError;
     }
-
-    return NextResponse.json(data);
   } catch (error) {
     console.error("Document fetch error:", error);
-    return NextResponse.json(
-      { detail: "Failed to fetch documents" },
-      { status: 500 }
-    );
+    // Return empty array instead of 500 error to prevent redirect
+    return NextResponse.json({ documents: [] }, { status: 200 });
   }
 }
 

@@ -163,7 +163,7 @@ function ContractDetailContent() {
     const fetchContract = async () => {
       try {
         if (contractId) {
-          const response = await fetch(`/api/v1/contracts/${contractId}`, {
+          const response = await fetch(`/api/v1/shipowners/contracts/${contractId}`, {
             headers: {
               Authorization: `Bearer ${user.accessToken}`,
               Accept: "application/json",
