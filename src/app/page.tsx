@@ -76,8 +76,9 @@ export default function Home() {
                 Precision Crewing for Maritime Operations
               </h1>
               <h2 className="text-gray-200 text-lg md:text-xl font-normal leading-relaxed max-w-lg">
-                Connecting qualified seafarers with leading ship owners and
-                stevedoring agents globally. Efficient, compliant, and reliable.
+                Delivering professional crewing and manning solutions by
+                connecting skilled seafarers with leading ship owners globally.
+                Efficient operations. Full compliance. Trusted performance.
               </h2>
               <div className="mt-4 flex flex-wrap gap-4 w-full max-w-lg">
                 <a
@@ -103,38 +104,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {/* Trust Signals */}
-      <section className="border-b border-[#e6d1d1] dark:border-[#4a0b0c] bg-surface-light dark:bg-surface-dark py-8">
-        <div className="layout-content-container flex flex-col items-center justify-center gap-6 px-4 text-center">
-          <p className="text-[#955051] dark:text-gray-400 text-sm font-semibold uppercase tracking-wider mb-2">
-            Trusted by industry leaders
-          </p>
-          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d1d1] dark:border-[#4a0b0c] bg-white dark:bg-surface-dark px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm">
-              <span className="material-symbols-outlined text-base">
-                anchor
-              </span>{" "}
-              OCEANIC
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d1d1] dark:border-[#4a0b0c] bg-white dark:bg-surface-dark px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm">
-              <span className="material-symbols-outlined text-base">waves</span>{" "}
-              PACIFIC LINE
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d1d1] dark:border-[#4a0b0c] bg-white dark:bg-surface-dark px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm">
-              <span className="material-symbols-outlined text-base">
-                local_shipping
-              </span>{" "}
-              PORT LOGISTICS
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#e6d1d1] dark:border-[#4a0b0c] bg-white dark:bg-surface-dark px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-sm">
-              <span className="material-symbols-outlined text-base">
-                explore
-              </span>{" "}
-              NAVIGATOR
-            </span>
-          </div>
-        </div>
-      </section>
+
       {/* Services Section */}
       <section className="py-16 px-6 lg:px-20 bg-background-light dark:bg-background-dark">
         <div className="mx-auto max-w-6xl">
@@ -388,19 +358,19 @@ export default function Home() {
                   <span className="material-symbols-outlined text-xs">
                     mail
                   </span>{" "}
-                  info@crewmanning.com
+                  info@allfreightsupportservices.com
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-xs">
                     call
                   </span>{" "}
-                  +1 (555) 123-4567
+                  +2347066511103
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-xs">
                     location_on
                   </span>{" "}
-                  123 Port Road, Maritime City
+                  6A Hinderer Road Apapa G.R.A, Lagos, Nigeria
                 </li>
               </ul>
             </div>
