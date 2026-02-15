@@ -13,11 +13,14 @@ export async function GET(
     const authHeader = request.headers.get("authorization");
 
     if (!authHeader) {
-      return NextResponse.json({ detail: "Authorization header missing" }, { status: 401 });
+      return NextResponse.json(
+        { detail: "Authorization header missing" },
+        { status: 401 },
+      );
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
       const res = await fetch(`${API_BASE_URL}/shipowners/contracts/${id}`, {
@@ -43,12 +46,18 @@ export async function GET(
       clearTimeout(timeout);
       if (err.name === "AbortError") {
         console.error("Shipowner contract fetch timeout");
-        return NextResponse.json({ detail: "Request timeout" }, { status: 504 });
+        return NextResponse.json(
+          { detail: "Request timeout" },
+          { status: 504 },
+        );
       }
       throw err;
     }
   } catch (error) {
     console.error("Shipowner contract route error:", error);
-    return NextResponse.json({ detail: "Failed to fetch contract" }, { status: 500 });
+    return NextResponse.json(
+      { detail: "Failed to fetch contract" },
+      { status: 500 },
+    );
   }
 }

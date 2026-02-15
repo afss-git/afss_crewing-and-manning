@@ -1,6 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 export default function Home() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden">
       {/* Navigation */}
@@ -13,24 +22,25 @@ export default function Home() {
             CrewManning
           </h2>
         </div>
+
         {/* Desktop Menu */}
         <div className="hidden lg:flex flex-1 justify-end gap-8 items-center">
           <nav className="flex items-center gap-8">
             <a
               className="text-[#1b0e0e] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors"
-              href="#"
-            >
-              About
-            </a>
-            <a
-              className="text-[#1b0e0e] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#services"
             >
               Services
             </a>
             <a
               className="text-[#1b0e0e] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#register"
+            >
+              Register
+            </a>
+            <a
+              className="text-[#1b0e0e] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors"
+              href="#contact"
             >
               Contact
             </a>
@@ -50,11 +60,64 @@ export default function Home() {
             </Link>
           </div>
         </div>
-        {/* Mobile Menu Icon */}
-        <div className="lg:hidden text-[#1b0e0e] dark:text-white">
-          <span className="material-symbols-outlined cursor-pointer">menu</span>
-        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          onClick={toggleMenu}
+          className="lg:hidden text-[#1b0e0e] dark:text-white focus:outline-none"
+          aria-label="Toggle menu"
+        >
+          <span className="material-symbols-outlined cursor-pointer text-2xl">
+            {isMenuOpen ? "close" : "menu"}
+          </span>
+        </button>
       </header>
+
+      {/* Mobile Menu - Slide Down */}
+      {isMenuOpen && (
+        <div className="lg:hidden bg-surface-light dark:bg-surface-dark border-b border-[#e6d1d1] dark:border-[#4a0b0c] px-6 py-4 animate-fade-in">
+          <nav className="flex flex-col gap-4">
+            <a
+              className="text-[#1b0e0e] dark:text-gray-200 text-base font-medium hover:text-primary transition-colors py-2"
+              href="#services"
+              onClick={toggleMenu}
+            >
+              Services
+            </a>
+            <a
+              className="text-[#1b0e0e] dark:text-gray-200 text-base font-medium hover:text-primary transition-colors py-2"
+              href="#register"
+              onClick={toggleMenu}
+            >
+              Register
+            </a>
+            <a
+              className="text-[#1b0e0e] dark:text-gray-200 text-base font-medium hover:text-primary transition-colors py-2"
+              href="#contact"
+              onClick={toggleMenu}
+            >
+              Contact
+            </a>
+            <div className="pt-4 border-t border-[#e6d1d1] dark:border-[#4a0b0c]">
+              <Link
+                className="block text-center text-primary dark:text-red-300 text-base font-bold leading-normal py-2"
+                href="/login"
+                onClick={toggleMenu}
+              >
+                Login
+              </Link>
+              <Link
+                href="#register"
+                className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary hover:bg-primary-dark transition-colors text-white text-base font-bold leading-normal tracking-[0.015em] mt-2"
+                onClick={toggleMenu}
+              >
+                <span className="truncate">Get Started</span>
+              </Link>
+            </div>
+          </nav>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative flex flex-col items-center justify-center w-full bg-background-light dark:bg-background-dark pt-8 pb-8">
         <div className="w-full max-w-[1440px] px-4 md:px-10 lg:px-20">
@@ -81,7 +144,7 @@ export default function Home() {
                 Efficient operations. Full compliance. Trusted performance.
               </h2>
               <div className="mt-4 flex flex-wrap gap-4 w-full max-w-lg">
-                <a
+                <Link
                   href="/register/seafarer"
                   className="flex flex-1 min-w-[160px] cursor-pointer items-center justify-center gap-2 rounded-lg h-12 px-6 bg-primary hover:bg-primary-dark text-white text-base font-bold transition-all shadow-lg hover:shadow-xl"
                 >
@@ -89,8 +152,8 @@ export default function Home() {
                     person
                   </span>
                   I am a Seafarer
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/register/shipowner"
                   className="flex flex-1 min-w-[160px] cursor-pointer items-center justify-center gap-2 rounded-lg h-12 px-6 bg-white hover:bg-gray-100 text-primary text-base font-bold transition-all shadow-lg border border-primary"
                 >
@@ -98,7 +161,7 @@ export default function Home() {
                     sailing
                   </span>
                   I am a Ship Owner
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -106,7 +169,10 @@ export default function Home() {
       </section>
 
       {/* Services Section */}
-      <section className="py-16 px-6 lg:px-20 bg-background-light dark:bg-background-dark">
+      <section
+        id="services"
+        className="py-16 px-6 lg:px-20 bg-background-light dark:bg-background-dark"
+      >
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-10">
             <div className="flex flex-col gap-4 text-center md:text-left">
@@ -120,7 +186,7 @@ export default function Home() {
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Card 1 */}
+              {/* Card 1 - One-Off Crew Supply */}
               <div className="group flex flex-col gap-6 rounded-xl border border-[#e6d1d1] dark:border-[#4a0b0c] bg-surface-light dark:bg-surface-dark p-8 shadow-sm transition-all hover:border-primary hover:shadow-md">
                 <div className="size-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <span className="material-symbols-outlined text-3xl">
@@ -149,10 +215,17 @@ export default function Home() {
                       </span>
                       Short-notice availability
                     </li>
+                    <li className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-green-600 text-sm">
+                        check_circle
+                      </span>
+                      24/7 support
+                    </li>
                   </ul>
                 </div>
               </div>
-              {/* Card 2 */}
+
+              {/* Card 2 - Full Crew Management */}
               <div className="group flex flex-col gap-6 rounded-xl border border-[#e6d1d1] dark:border-[#4a0b0c] bg-surface-light dark:bg-surface-dark p-8 shadow-sm transition-all hover:border-primary hover:shadow-md">
                 <div className="size-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                   <span className="material-symbols-outlined text-3xl">
@@ -181,6 +254,12 @@ export default function Home() {
                       </span>
                       Training & career development
                     </li>
+                    <li className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-green-600 text-sm">
+                        check_circle
+                      </span>
+                      Regulatory compliance
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -188,6 +267,30 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Stats Section */}
+      <section className="py-16 px-6 lg:px-20 bg-gradient-to-br from-primary/5 to-white dark:from-primary/10 dark:to-surface-dark">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { number: "10,000+", label: "Seafarers Registered" },
+              { number: "500+", label: "Ship Owners" },
+              { number: "40+", label: "Countries Served" },
+              { number: "98%", label: "Success Rate" },
+            ].map((stat, index) => (
+              <div key={index} className="text-center p-6">
+                <div className="text-4xl font-black text-primary mb-2">
+                  {stat.number}
+                </div>
+                <div className="text-gray-600 dark:text-gray-300 font-medium">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Image Break */}
       <section className="w-full h-64 md:h-80 lg:h-96 relative overflow-hidden">
         <div className="absolute inset-0 bg-primary/40 z-10"></div>
@@ -195,7 +298,7 @@ export default function Home() {
           className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDUtNCikXXf5pp4sQ-g_qxiOj_zI6Tz9y7SpoRAUlRI_8poz9vLrLI3iOr1JEi8vnv8K7WNlSwjEL27S7bXHwQlvGU-37Wx686OWoYhjOJNS00wnBCEoy-wJAWxg_NL_D3c1sAbjBfjlQSWks7EwSwNjcVENrYjPgnA4Hij5_fmGg2Q_6eDf6E_dIL-EbINpDnQsMLLiai9L3RKd6Nobp6x-VP_yFD1CyKo-S3Zzn694Dxk9d38LMiMMKM91Vpch48mPlx281aBTfAG')",
+              "url('https://images.unsplash.com/photo-1581094794323-8f4f69156506?w=1200&h=600&fit=crop')",
           }}
         />
         <div className="absolute inset-0 z-20 flex items-center justify-center">
@@ -209,6 +312,61 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section className="py-16 px-6 lg:px-20 bg-background-light dark:bg-background-dark">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-[#1b0e0e] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.02em] mb-4">
+              Why Choose CrewManning?
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 text-lg max-w-2xl mx-auto">
+              We combine cutting-edge technology with deep maritime industry
+              expertise
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: "verified",
+                title: "Verified Profiles",
+                description:
+                  "Every seafarer undergoes rigorous background checks and document verification.",
+              },
+              {
+                icon: "speed",
+                title: "Rapid Deployment",
+                description:
+                  "Find and onboard qualified crew within 24-48 hours for urgent requirements.",
+              },
+              {
+                icon: "security",
+                title: "Compliance Guaranteed",
+                description:
+                  "Stay compliant with international maritime regulations and standards.",
+              },
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="bg-surface-light dark:bg-surface-dark p-8 rounded-xl border border-[#e6d1d1] dark:border-[#4a0b0c] text-center hover:shadow-lg transition-shadow"
+              >
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
+                  <span className="material-symbols-outlined text-3xl">
+                    {feature.icon}
+                  </span>
+                </div>
+                <h3 className="text-[#1b0e0e] dark:text-white text-xl font-bold mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Pathways Section */}
       <section
         id="register"
@@ -238,12 +396,12 @@ export default function Home() {
                     Find your next contract
                   </p>
                 </div>
-                <a
+                <Link
                   href="/register/seafarer"
                   className="w-full flex items-center justify-center rounded-lg h-12 px-5 bg-primary hover:bg-primary-dark text-white text-sm font-bold tracking-[0.015em] transition-colors"
                 >
                   Register as Seafarer
-                </a>
+                </Link>
               </div>
               <div className="flex-1 flex flex-col gap-4 items-center p-6 rounded-xl bg-white dark:bg-background-dark shadow-sm border border-transparent hover:border-primary/30 transition-all">
                 <span className="material-symbols-outlined text-4xl text-primary">
@@ -257,12 +415,12 @@ export default function Home() {
                     Staff your vessels
                   </p>
                 </div>
-                <a
+                <Link
                   href="/register/shipowner"
                   className="w-full flex items-center justify-center rounded-lg h-12 px-5 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white text-sm font-bold tracking-[0.015em] transition-colors"
                 >
                   Register as Ship Owner
-                </a>
+                </Link>
               </div>
             </div>
             <p className="text-sm text-gray-500">
@@ -277,8 +435,73 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      <section className="py-16 px-6 lg:px-20 bg-gradient-to-br from-white to-[#f9f5f5] dark:from-surface-dark dark:to-[#1a0f10]">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-[#1b0e0e] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.02em] mb-4">
+              What Our Users Say
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 text-lg max-w-2xl mx-auto">
+              Join thousands of satisfied seafarers and ship owners
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Captain John Smith",
+                role: "Master Mariner",
+                content:
+                  "CrewManning revolutionized how I find qualified crew. The verification system saved me countless hours.",
+                rating: 5,
+              },
+              {
+                name: "Sarah Williams",
+                role: "Fleet Manager",
+                content:
+                  "Managing 15 vessels was a nightmare before CrewManning. Now I can track all deployments from one dashboard.",
+                rating: 5,
+              },
+              {
+                name: "Michael Chen",
+                role: "Chief Engineer",
+                content:
+                  "Found my dream position in just 2 weeks! The platform made document management and applications so easy.",
+                rating: 5,
+              },
+            ].map((testimonial, index) => (
+              <div
+                key={index}
+                className="bg-white dark:bg-surface-dark p-8 rounded-xl border border-[#e6d1d1] dark:border-[#4a0b0c] shadow-sm"
+              >
+                <div className="flex mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <span
+                      key={i}
+                      className="material-symbols-outlined text-yellow-400 text-lg"
+                    >
+                      star
+                    </span>
+                  ))}
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 italic mb-6">
+                  "{testimonial.content}"
+                </p>
+                <div>
+                  <p className="font-bold text-[#1b0e0e] dark:text-white">
+                    {testimonial.name}
+                  </p>
+                  <p className="text-sm text-gray-500">{testimonial.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-primary text-white pt-16 pb-8">
+      <footer id="contact" className="bg-primary text-white pt-16 pb-8">
         <div className="px-6 lg:px-20 max-w-[1440px] mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
             <div className="col-span-1 md:col-span-1 flex flex-col gap-4">
@@ -294,25 +517,45 @@ export default function Home() {
                 The premier digital platform for maritime crewing solutions.
                 Connecting the world&apos;s oceans through verified talent.
               </p>
+              <div className="flex gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <a
+                    key={i}
+                    href="#"
+                    className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {i === 1
+                        ? "facebook"
+                        : i === 2
+                          ? "twitter"
+                          : i === 3
+                            ? "linkedin"
+                            : "instagram"}
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
+
             <div>
               <h4 className="font-bold text-lg mb-4">Platform</h4>
               <ul className="flex flex-col gap-2 text-sm text-white/80">
                 <li>
-                  <a
+                  <Link
                     href="/register/seafarer"
                     className="hover:text-white hover:underline"
                   >
                     Seafarer Registration
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    className="hover:text-white hover:underline"
+                  <Link
                     href="/register/shipowner"
+                    className="hover:text-white hover:underline"
                   >
                     Ship Owner Registration
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a className="hover:text-white hover:underline" href="#">
@@ -326,6 +569,7 @@ export default function Home() {
                 </li>
               </ul>
             </div>
+
             <div>
               <h4 className="font-bold text-lg mb-4">Company</h4>
               <ul className="flex flex-col gap-2 text-sm text-white/80">
@@ -351,30 +595,32 @@ export default function Home() {
                 </li>
               </ul>
             </div>
+
             <div>
               <h4 className="font-bold text-lg mb-4">Contact</h4>
-              <ul className="flex flex-col gap-2 text-sm text-white/80">
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xs">
+              <ul className="flex flex-col gap-3 text-sm text-white/80">
+                <li className="flex items-start gap-2">
+                  <span className="material-symbols-outlined text-base mt-0.5">
                     mail
-                  </span>{" "}
-                  info@allfreightsupportservices.com
+                  </span>
+                  <span>info@allfreightsupportservices.com</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xs">
+                <li className="flex items-start gap-2">
+                  <span className="material-symbols-outlined text-base mt-0.5">
                     call
-                  </span>{" "}
-                  +2347066511103
+                  </span>
+                  <span>+234 706 651 1103</span>
                 </li>
-                <li className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xs">
+                <li className="flex items-start gap-2">
+                  <span className="material-symbols-outlined text-base mt-0.5">
                     location_on
-                  </span>{" "}
-                  6A Hinderer Road Apapa G.R.A, Lagos, Nigeria
+                  </span>
+                  <span>6A Hinderer Road, Apapa G.R.A, Lagos, Nigeria</span>
                 </li>
               </ul>
             </div>
           </div>
+
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/60">
             <p>
               © {new Date().getFullYear()} CrewManning Platform. All rights

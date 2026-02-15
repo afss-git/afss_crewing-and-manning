@@ -140,7 +140,8 @@ const Sidebar: React.FC<{ active: string }> = ({ active }) => {
 function ContractDetailContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const contractId = searchParams?.get("id") || "";
+  const contractId = searchParams?.get("ref") || searchParams?.get("id") || "";
+
   const [contract, setContract] = useState<ContractData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,12 +164,15 @@ function ContractDetailContent() {
     const fetchContract = async () => {
       try {
         if (contractId) {
-          const response = await fetch(`/api/v1/shipowners/contracts/${contractId}`, {
-            headers: {
-              Authorization: `Bearer ${user.accessToken}`,
-              Accept: "application/json",
+          const response = await fetch(
+            `/api/v1/shipowners/contracts/${contractId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${user.accessToken}`,
+                Accept: "application/json",
+              },
             },
-          });
+          );
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
